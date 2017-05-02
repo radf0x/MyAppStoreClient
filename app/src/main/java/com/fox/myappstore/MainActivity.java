@@ -249,8 +249,8 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
     }
 
     private void setupRecommendedFeed( Bundle bundle ) {
-        String reponseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
-        ServerResponse response = GsonHelper.fromJson( reponseStr, ServerResponse.class );
+        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
+        ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
         if ( null != response ) {
             ServerResponse.FeedModel feed = response.getFeed();
             Log.i( TAG, "inbound feed for recommended apps: " );
@@ -261,8 +261,8 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
     }
 
     private void setupAppListFeed( Bundle bundle ) {
-        String reponseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
-        ServerResponse response = GsonHelper.fromJson( reponseStr, ServerResponse.class );
+        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
+        ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
         if ( null != response ) {
             ServerResponse.FeedModel feed = response.getFeed();
             Log.i( TAG, "inbound feed for apps list: " );
