@@ -14,6 +14,7 @@ import com.fox.myappstore.request.AppListRequest;
 import com.fox.myappstore.request.RecommendedAppsRequest;
 import com.fox.myappstore.request.core.HttpRequestImpl;
 import com.fox.myappstore.utils.GsonHelper;
+import com.fox.myappstore.utils.NetworkHelper;
 import com.fox.myappstore.utils.concurrent.AsyncLoaderTask;
 import com.fox.myappstore.utils.concurrent.MyHandler;
 import com.fox.myappstore.utils.concurrent.MyHandlerCallback;
@@ -47,20 +48,30 @@ import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements CustomListener, OnTaskCompleted, MyHandlerCallback {
     private final String TAG = this.getClass().getSimpleName();
+
+    // Event ids.
     private final int EVENT_GET_RECOMMENDED_APPS = 1;
     private final int EVENT_GET_APPS_LIST = 2;
+    private final int EVENT_QUERY_APPS_LIST = 3;
+    private final int EVENT_APPEND_LOADING_VIEW = 4;
+    private final int EVENT_REMOVE_LOADING_VIEW = 5;
 
-    public RecommendedAdapter recommendedAdapter;
-    public AppListAdapter appListAdapter;
+    // View objects.
     public RecyclerView rvRecommended, rvFreeApps;
     public LinearLayoutManager horizontalManager, verticalManager;
 
+    // Custom objects.
     private MyHandler mHandler = new MyHandler( this );
-
+    public RecommendedAdapter recommendedAdapter;
+    public AppListAdapter appListAdapter;
     private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
     private List< FreeAppModel > mRecommendModels = new ArrayList<>();
 
-    //Multi threading stuff
+    // Primitives.
+    private int paginationStartPosition = 10;
+    private boolean bEndOfFeed = false;
+
+    //Multi threading stuff.
     private final int KEEP_ALIVE_TIME = 1;
     private final TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.SECONDS;
     private final int MIN_NUM_OF_CORES = 1;
@@ -74,12 +85,12 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
         setContentView( R.layout.activity_main );
         rvRecommended = ( RecyclerView ) findViewById( R.id.rv_recommended );
         rvFreeApps = ( RecyclerView ) findViewById( R.id.rv_free_apps );
+        setupRecyclerViews();
+        setupAdapters();
         fetchAppListFromServer();
         fetchRecommendedAppFromFromServer();
         fetchAppListFromAsset();
         fetchRecommendedAppsFromAsset();
-        setupAdapters();
-        setupRecyclerViews();
     }
 
     private void fetchAppListFromServer() {
@@ -115,17 +126,17 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
         horizontalManager = new LinearLayoutManager( this, LinearLayoutManager.HORIZONTAL, false );
         verticalManager = new LinearLayoutManager( this, LinearLayoutManager.VERTICAL, false );
         rvRecommended.setLayoutManager( horizontalManager );
-        rvRecommended.setAdapter( recommendedAdapter );
         rvFreeApps.setLayoutManager( verticalManager );
         rvFreeApps.addItemDecoration( new DividerDecoration( this, R.drawable.divider ) );
-        rvFreeApps.setAdapter( appListAdapter );
     }
 
     private void setupAdapters() {
         recommendedAdapter = new RecommendedAdapter();
-        appListAdapter = new AppListAdapter();
+        appListAdapter = new AppListAdapter( rvFreeApps );
         recommendedAdapter.addCustomListener( this );
         appListAdapter.addCustomListener( this );
+        rvRecommended.setAdapter( recommendedAdapter );
+        rvFreeApps.setAdapter( appListAdapter );
     }
 
     @Override
@@ -188,7 +199,12 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
 
     @Override
     public void onLoadMore() {
-
+        if ( !bEndOfFeed ) {
+            mHandler.sendEmptyMessage( EVENT_APPEND_LOADING_VIEW );
+            if ( NetworkHelper.isConnected( this ) ) {
+                mHandler.sendEmptyMessage( EVENT_QUERY_APPS_LIST );
+            }
+        }
     }
 
     @Override
@@ -206,6 +222,25 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
                 if ( bundle.getBoolean( HttpRequestImpl.IS_SUCCESSFUL ) ) {
                     setupAppListFeed( bundle );
                 }
+                break;
+            }
+            case EVENT_QUERY_APPS_LIST: {
+                if ( paginationStartPosition == 100 ) {
+                    bEndOfFeed = true;
+                }
+                int paginationEndPosition = paginationStartPosition + 10;
+                appListAdapter.updateFreeAppModels( mFreeAppModels.subList( paginationStartPosition, paginationEndPosition ) );
+                paginationStartPosition = paginationEndPosition;
+                mHandler.sendEmptyMessage( EVENT_REMOVE_LOADING_VIEW );
+                appListAdapter.onLoadFinished();
+                break;
+            }
+            case EVENT_APPEND_LOADING_VIEW: {
+                appListAdapter.appendLoadingView();
+                break;
+            }
+            case EVENT_REMOVE_LOADING_VIEW: {
+                appListAdapter.removeLoadingView( null );
                 break;
             }
             default:

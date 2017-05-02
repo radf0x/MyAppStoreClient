@@ -1,5 +1,6 @@
 package com.fox.myappstore.widgets;
 
+import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -32,10 +33,35 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
     private final String TAG = this.getClass().getSimpleName();
     private final int TYPE_ODD = 0;
     private final int TYPE_EVEN = 1;
+    private final int TYPE_FOOTER = 2;
 
+    private List< FreeAppModel > mTotalFreeAppModels = new ArrayList<>();
     private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
+    private boolean bIsLoading = false;
+    private int visibleThreshold = 9;
 
     public CustomListener mListener;
+
+    public AppListAdapter( RecyclerView recyclerView ) {
+        final LinearLayoutManager layoutManager = ( LinearLayoutManager ) recyclerView.getLayoutManager();
+        recyclerView.addOnScrollListener( new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled( RecyclerView recyclerView, int dx, int dy ) {
+                super.onScrolled( recyclerView, dx, dy );
+                if ( dy > 0 ) {
+                    int visibleItemCount = layoutManager.getChildCount();
+                    int totalItemCount = layoutManager.getItemCount();
+                    int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
+                    if ( !bIsLoading && ( totalItemCount - visibleItemCount ) <= ( firstVisibleItemPosition + visibleThreshold ) ) {
+                        if ( null != mListener ) {
+                            mListener.onLoadMore();
+                        }
+                        bIsLoading = true;
+                    }
+                }
+            }
+        } );
+    }
 
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder( ViewGroup parent, int viewType ) {
@@ -45,6 +71,9 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
             }
             case TYPE_EVEN: {
                 return new ItemHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_app_even, parent, false ) );
+            }
+            case TYPE_FOOTER: {
+                return new SimpleViewHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_loading, parent, false ) );
             }
             default: {
                 throw new IllegalArgumentException();
@@ -71,6 +100,9 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
 
     @Override
     public int getItemViewType( int position ) {
+        if ( isFooterViewPosition( position ) ) {
+            return TYPE_FOOTER;
+        }
         return position % 2 == 0 ? TYPE_EVEN : TYPE_ODD;
     }
 
@@ -98,8 +130,45 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
      * @param freeAppModels FreeAppModel
      */
     public void setFreeAppModels( List< FreeAppModel > freeAppModels ) {
-        mFreeAppModels = freeAppModels;
+        mTotalFreeAppModels.addAll( freeAppModels );
+        mFreeAppModels = mTotalFreeAppModels.subList( 0, 9 ); // hardcoded range.
         notifyDataSetChanged();
+    }
+
+    /**
+     * Append new data to last index.
+     *
+     * @param newFreeAppModels inbound data from server.
+     */
+    public void updateFreeAppModels( List< FreeAppModel > newFreeAppModels ) {
+        int oldPos = mFreeAppModels.size();
+        mFreeAppModels.addAll( mFreeAppModels.size(), newFreeAppModels );
+        notifyItemRangeChanged( oldPos, mFreeAppModels.size() );
+    }
+
+    /**
+     * Notify load delegate when loading is completed.
+     */
+    public void onLoadFinished() {
+        bIsLoading = false;
+    }
+
+    public void appendLoadingView() {
+        mFreeAppModels.add( null );
+        notifyItemInserted( mFreeAppModels.size() - 1 );
+    }
+
+    public void removeLoadingView( Object item ) {
+        int index = mFreeAppModels.indexOf( item );
+        if ( index != -1 ) {
+            mFreeAppModels.remove( index );
+            notifyItemRemoved( index );
+        }
+
+    }
+
+    private boolean isFooterViewPosition( int position ) {
+        return position == mFreeAppModels.size() - 1;
     }
 
     private class ItemHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
@@ -144,6 +213,12 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
                     mListener.onItemClick( mFreeAppModels.get( position ) );
                 }
             }
+        }
+    }
+
+    private class SimpleViewHolder extends RecyclerView.ViewHolder {
+        public SimpleViewHolder( View itemView ) {
+            super( itemView );
         }
     }
 }
