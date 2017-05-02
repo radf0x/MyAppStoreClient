@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">MyAppStore</string>
+    <string name="recommend_title">Recommended</string>
+</resources>

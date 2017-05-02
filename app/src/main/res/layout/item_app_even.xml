@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="@dimen/list_padding_vertical"
+                android:paddingEnd="@dimen/list_padding_horizontal"
+                android:paddingLeft="@dimen/list_padding_horizontal"
+                android:paddingRight="@dimen/list_padding_horizontal"
+                android:paddingStart="@dimen/list_padding_horizontal"
+                android:paddingTop="@dimen/list_padding_vertical">
+
+    <com.fox.myappstore.widgets.CustomImageView
+        android:id="@+id/iv_icon"
+        android:layout_width="@dimen/app_icon_min_height"
+        android:layout_height="@dimen/app_icon_min_width"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        app:placeholder="@color/platinum_half_transparent"
+        app:scaleType="cropCircle"/>
+
+    <TextView
+        android:id="@+id/tv_app_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_toEndOf="@+id/iv_icon"
+        android:layout_toRightOf="@+id/iv_icon"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="Oldwuni"
+        android:textSize="@dimen/item_list_title_text_size"/>
+
+    <TextView
+        android:id="@+id/tv_app_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/tv_app_title"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_toEndOf="@+id/iv_icon"
+        android:layout_toRightOf="@+id/iv_icon"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="Fox"
+        android:textSize="@dimen/item_list_subtitle_text_size"/>
+</RelativeLayout>

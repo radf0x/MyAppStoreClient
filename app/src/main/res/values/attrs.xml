@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="CustomImageView">
+        <attr name="placeholder" format="reference|color"/>
+        <attr name="error" format="reference|color"/>
+
+        <attr name="override_width" format="dimension"/>
+        <attr name="override_height" format="dimension"/>
+        <attr name="scaleType" format="enum">
+            <enum name="centerCrop" value="0"/>
+            <enum name="fitCenter" value="1"/>
+            <enum name="cropCircle" value="2"/>
+            <enum name="cropSquare" value="3"/>
+            <enum name="cropSquareRounded" value="4"/>
+            <enum name="fitXY" value="5"/>
+        </attr>
+        <attr name="roundedCornerRadius" format="dimension"/>
+        <attr name="roundedCornerMargin" format="dimension"/>
+        <attr name="roundedCornerType" format="enum">
+            <enum name="all" value="0"/>
+            <enum name="top_left" value="1"/>
+            <enum name="top_right" value="2"/>
+            <enum name="bottom_left" value="3"/>
+            <enum name="bottom_right" value="4"/>
+            <enum name="top" value="5"/>
+            <enum name="bottom" value="6"/>
+            <enum name="left" value="7"/>
+            <enum name="right" value="8"/>
+            <enum name="other_top_left" value="9"/>
+            <enum name="other_top_right" value="10"/>
+            <enum name="other_bottom_left" value="11"/>
+            <enum name="other_bottom_right" value="12"/>
+            <enum name="diagonal_from_top_left" value="13"/>
+            <enum name="diagonal_from_top_right" value="14"/>
+        </attr>
+        <attr name="crossFade" format="boolean"/>
+        <attr name="dontAnimate" format="boolean"/>
+        <attr name="priority" format="enum">
+            <enum name="immediate" value="0"/>
+            <enum name="high" value="1"/>
+            <enum name="normal" value="2"/>
+            <enum name="low" value="3"/>
+        </attr>
+        <attr name="skipMemoryCache" format="boolean"/>
+        <attr name="diskCacheStrategy" format="enum">
+            <enum name="all" value="0"/>
+            <enum name="none" value="1"/>
+            <enum name="source" value="2"/>
+            <enum name="result" value="3"/>
+        </attr>
+    </declare-styleable>
+</resources>

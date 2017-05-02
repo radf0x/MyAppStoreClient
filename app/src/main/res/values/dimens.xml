@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="app_icon_min_width">53dp</dimen>
+    <dimen name="app_icon_min_height">53dp</dimen>
+
+    <dimen name="item_recommend_title_text_size">12dp</dimen>
+    <dimen name="item_recommend_subtitle_text_size">12dp</dimen>
+
+    <dimen name="item_list_title_text_size">16dp</dimen>
+    <dimen name="item_list_subtitle_text_size">14dp</dimen>
+
+    <dimen name="list_padding_horizontal">16dp</dimen>
+    <dimen name="list_padding_vertical">8dp</dimen>
+
+</resources>
