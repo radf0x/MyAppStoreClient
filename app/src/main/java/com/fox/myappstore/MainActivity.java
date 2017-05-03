@@ -3,14 +3,12 @@ package com.fox.myappstore;
 import android.os.Bundle;
 import android.os.Message;
 import android.os.PersistableBundle;
-import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.util.Log;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 
@@ -74,7 +72,8 @@ public class MainActivity extends AppCompatActivity implements
     private MyHandler mHandler = new MyHandler( this );
     public RecommendedAdapter recommendedAdapter;
     public AppListAdapter appListAdapter;
-    private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
+    private List< FreeAppModel > mTotalAppListModels = new ArrayList<>();
+    private List< FreeAppModel > mAppListModels = new ArrayList<>();
     private List< FreeAppModel > mRecommendModels = new ArrayList<>();
 
     // Primitives.
@@ -122,8 +121,8 @@ public class MainActivity extends AppCompatActivity implements
 
             @Override
             public boolean onQueryTextChange( String newText ) {
-                Log.d( TAG, "onQueryTextChange(" + newText + ")" );
                 searchForApps( newText );
+                searchForRecommendedApps( newText );
                 return true;
             }
         } );
@@ -135,6 +134,24 @@ public class MainActivity extends AppCompatActivity implements
                 }
             }
         } );
+    }
+
+    private void searchForApps( String query ) {
+        final List< FreeAppModel > filtered = filter( mAppListModels, query );
+        appListAdapter.setAppListData( filtered );
+        appListAdapter.notifyDataSetChanged();
+    }
+
+    private List< FreeAppModel > filter( List< FreeAppModel > data, String query ) {
+        query = query.toLowerCase();
+        final List< FreeAppModel > filtered = new ArrayList<>();
+        for ( FreeAppModel model : data ) {
+            final String text = model.getAppNameModel().getName().toLowerCase();
+            if ( text.contains( query ) ) {
+                filtered.add( model );
+            }
+        }
+        return filtered;
     }
 
     private void fetchAppListFromServer() {
@@ -195,7 +212,7 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     protected void onDestroy() {
-        mFreeAppModels.clear();
+        mAppListModels.clear();
         mRecommendModels.clear();
         super.onDestroy();
     }
@@ -210,10 +227,8 @@ public class MainActivity extends AppCompatActivity implements
         super.onSaveInstanceState( outState, outPersistentState );
     }
 
-    private void searchForApps( String query ) {
-        Log.i( TAG, "query = " + query );
+    private void searchForRecommendedApps( String query ) {
         recommendedAdapter.getFilter().filter( query );
-        appListAdapter.getFilter().filter( query );
     }
 
     @Override
@@ -231,15 +246,16 @@ public class MainActivity extends AppCompatActivity implements
         switch ( eventId ) {
             case AsyncLoaderTask.EVENT_APP_LIST: {
                 if ( output.getClass().isAssignableFrom( ServerResponse.class ) ) {
-                    mFreeAppModels = ( ( ServerResponse ) output ).getFeed().getFreeAppModels();
-                    appListAdapter.setFreeAppModels( mFreeAppModels.subList( 0, 9 ) ); // hardcoded range.
+                    mTotalAppListModels = ( ( ServerResponse ) output ).getFeed().getFreeAppModels();
+                    mAppListModels = ( ( ServerResponse ) output ).getFeed().getFreeAppModels();
+                    appListAdapter.setAppListData( mAppListModels.subList( 0, 9 ) ); // hardcoded range.
                 }
                 break;
             }
             case AsyncLoaderTask.EVENT_RECOMMEND: {
                 if ( output.getClass().isAssignableFrom( ServerResponse.class ) ) {
                     mRecommendModels = ( ( ServerResponse ) output ).getFeed().getFreeAppModels();
-                    recommendedAdapter.setFreeAppModels( mRecommendModels );
+                    recommendedAdapter.setRecommendedData( mRecommendModels );
                 }
                 break;
             }
@@ -254,11 +270,9 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onLoadMore() {
-        if ( paginationStartPosition < 100 ) {
-            mHandler.sendEmptyMessage( EVENT_APPEND_LOADING_VIEW );
-            if ( NetworkHelper.isConnected( this ) ) {
-                mHandler.sendEmptyMessage( EVENT_QUERY_APPS_LIST );
-            }
+//        Log.d( TAG, "onLoadMore(" + bEndOfFeed + ")" );
+        if ( !bEndOfFeed && NetworkHelper.isConnected( this ) ) {
+            mHandler.sendEmptyMessage( EVENT_QUERY_APPS_LIST );
         }
     }
 
@@ -280,22 +294,17 @@ public class MainActivity extends AppCompatActivity implements
                 break;
             }
             case EVENT_QUERY_APPS_LIST: {
+                appListAdapter.setLoading( true );
                 int paginationEndPosition = paginationStartPosition + 10;
-                Log.i( TAG, "start : " + paginationStartPosition );
-                appListAdapter.updateFreeAppModels( mFreeAppModels.subList( paginationStartPosition, paginationEndPosition ) );
+                if ( paginationEndPosition == 100 ) {
+                    bEndOfFeed = true;
+                }
+                List< FreeAppModel > models = mTotalAppListModels.subList( paginationStartPosition, paginationEndPosition );
+                mAppListModels.addAll( models );
+                appListAdapter.setAppListData( mAppListModels );
+                appListAdapter.setLoading( false );
                 paginationStartPosition = paginationEndPosition;
-                Log.i( TAG, "next start : " + paginationStartPosition );
-                Log.i( TAG, "end : " + paginationEndPosition );
-                mHandler.sendEmptyMessage( EVENT_REMOVE_LOADING_VIEW );
                 appListAdapter.onLoadFinished();
-                break;
-            }
-            case EVENT_APPEND_LOADING_VIEW: {
-                appListAdapter.appendLoadingView();
-                break;
-            }
-            case EVENT_REMOVE_LOADING_VIEW: {
-                appListAdapter.removeLoadingView( null );
                 break;
             }
             default:
@@ -304,8 +313,8 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void setupRecommendedFeed( Bundle bundle ) {
-        String reponseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
-        ServerResponse response = GsonHelper.fromJson( reponseStr, ServerResponse.class );
+        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
+        ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
         if ( null != response ) {
 //            ServerResponse.FeedModel feed = response.getFeed();
 //            Log.i( TAG, "inbound feed for recommended apps: " );
@@ -316,8 +325,8 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void setupAppListFeed( Bundle bundle ) {
-        String reponseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
-        ServerResponse response = GsonHelper.fromJson( reponseStr, ServerResponse.class );
+        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
+        ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
 //        if ( null != response ) {
 //            ServerResponse.FeedModel feed = response.getFeed();
 //            Log.i( TAG, "inbound feed for apps list: " );

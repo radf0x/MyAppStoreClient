@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Filter;
 import android.widget.Filterable;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.fox.myappstore.R;
@@ -43,7 +44,8 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
     private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
     private List< FreeAppModel > mOriginalModels;
     private boolean bIsLoading = false;
-    private int visibleThreshold = 9;
+    private boolean bIsFooterVisible = false;
+    private int visibleThreshold = 5;
 
     public CustomListener mListener;
 
@@ -78,7 +80,7 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
                 return new ItemHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_app_even, parent, false ) );
             }
             case TYPE_FOOTER: {
-                return new SimpleViewHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_loading, parent, false ) );
+                return new LoadingViewHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_loading, parent, false ) );
             }
             default: {
                 throw new IllegalArgumentException();
@@ -88,11 +90,16 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
 
     @Override
     public void onBindViewHolder( RecyclerView.ViewHolder holder, int position ) {
-        FreeAppModel model = mFreeAppModels.get( position );
-        if ( null != model ) {
-            if ( holder.getClass().isAssignableFrom( ItemHolder.class ) ) {
-                ItemHolder itemHolder = ( ItemHolder ) holder;
-                itemHolder.bindData( model );
+        if ( holder instanceof LoadingViewHolder ) {
+            LoadingViewHolder viewHolder = ( LoadingViewHolder ) holder;
+            viewHolder.pb.setVisibility( bIsFooterVisible ? View.VISIBLE : View.GONE );
+        } else {
+            FreeAppModel model = mFreeAppModels.get( position );
+            if ( null != model ) {
+                if ( holder instanceof ItemHolder ) {
+                    ItemHolder itemHolder = ( ItemHolder ) holder;
+                    itemHolder.bindData( model );
+                }
             }
         }
     }
@@ -100,7 +107,11 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
     // Determine the total amount of items should be loaded.
     @Override
     public int getItemCount() {
-        return mFreeAppModels.size();
+        if ( mFreeAppModels == null || mFreeAppModels.size() == 0 ) {
+            return 0;
+        }
+        // +1 for footer
+        return mFreeAppModels.size() + 1;
     }
 
     @Override
@@ -134,20 +145,9 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
      *
      * @param freeAppModels FreeAppModel
      */
-    public void setFreeAppModels( List< FreeAppModel > freeAppModels ) {
-        mFreeAppModels = freeAppModels;
-        notifyDataSetChanged();
-    }
-
-    /**
-     * Append new data to last index.
-     *
-     * @param newFreeAppModels inbound data from server.
-     */
-    public void updateFreeAppModels( List< FreeAppModel > newFreeAppModels ) {
-        int oldPos = mFreeAppModels.size();
-        mFreeAppModels.addAll( mFreeAppModels.size(), newFreeAppModels );
-        notifyItemRangeChanged( oldPos, mFreeAppModels.size() );
+    public void setAppListData( List< FreeAppModel > freeAppModels ) {
+        mFreeAppModels.clear();
+        mFreeAppModels.addAll( freeAppModels );
     }
 
     /**
@@ -157,22 +157,16 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
         bIsLoading = false;
     }
 
-    public void appendLoadingView() {
-        mFreeAppModels.add( null );
-        notifyItemInserted( mFreeAppModels.size() - 1 );
-    }
-
-    public void removeLoadingView( Object item ) {
-        int index = mFreeAppModels.indexOf( item );
-        if ( index != -1 ) {
-            mFreeAppModels.remove( index );
-            notifyItemRemoved( index );
-        }
-
+    public void setLoading( boolean status ) {
+        bIsFooterVisible = status;
+        notifyDataSetChanged();
     }
 
     private boolean isFooterViewPosition( int position ) {
-        return position == mFreeAppModels.size() - 1;
+        if ( position != 0 && position == getItemCount() - 1 ) {
+            return true;
+        }
+        return false;
     }
 
     private class ItemHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
@@ -213,16 +207,21 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
             int position = getAdapterPosition();
             if ( position >= 0 && position < mFreeAppModels.size() ) {
                 if ( null != mListener ) {
-                    Log.d( TAG, "clicked pos : " + position );
                     mListener.onItemClick( mFreeAppModels.get( position ) );
+                    Log.i( TAG, "===== BEGIN DEBUG =====" );
+                    Log.d( TAG, "clicked pos : " + position + " app name : " + mFreeAppModels.get( position ).getAppNameModel().getName() );
+                    Log.i( TAG, "=======================" );
                 }
             }
         }
     }
 
-    private class SimpleViewHolder extends RecyclerView.ViewHolder {
-        public SimpleViewHolder( View itemView ) {
+    private class LoadingViewHolder extends RecyclerView.ViewHolder {
+        ProgressBar pb;
+
+        public LoadingViewHolder( View itemView ) {
             super( itemView );
+            pb = ( ProgressBar ) itemView.findViewById( R.id.pb_loading );
         }
     }
 
@@ -261,8 +260,11 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
             @Override
             protected void publishResults( CharSequence constraint, FilterResults results ) {
                 //noinspection unchecked
-                mFreeAppModels = ( List< FreeAppModel > ) results.values;
-                notifyDataSetChanged();
+                if ( results.count > 0 ) {
+                    mFreeAppModels.clear();
+                    mFreeAppModels.addAll( ( ArrayList< FreeAppModel > ) results.values );
+                    notifyDataSetChanged();
+                }
             }
         };
     }

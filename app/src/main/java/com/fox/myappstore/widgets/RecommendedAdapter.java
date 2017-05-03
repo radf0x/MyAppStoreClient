@@ -87,7 +87,7 @@ public class RecommendedAdapter extends RecyclerView.Adapter< RecyclerView.ViewH
      *
      * @param freeAppModels FreeAppModel
      */
-    public void setFreeAppModels( List< FreeAppModel > freeAppModels ) {
+    public void setRecommendedData( List< FreeAppModel > freeAppModels ) {
         mFreeAppModels = freeAppModels;
         notifyDataSetChanged();
     }
