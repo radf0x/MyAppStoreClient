@@ -1,10 +1,13 @@
 package com.fox.myappstore.widgets;
 
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.TextView;
 
 import com.fox.myappstore.R;
@@ -12,6 +15,8 @@ import com.fox.myappstore.data.FreeAppModel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.locks.Lock;
 
 /**
  * Copyright 2017 RavicPN
@@ -28,9 +33,13 @@ import java.util.List;
  * limitations under the License.
  */
 
-public class RecommendedAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder > {
+public class RecommendedAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder > implements Filterable {
+
     private final String TAG = this.getClass().getSimpleName();
+
+    private Object mLock = new Object();
     private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
+    private List< FreeAppModel > mOriginalModels;
     public CustomListener mListener;
 
     @Override
@@ -125,6 +134,47 @@ public class RecommendedAdapter extends RecyclerView.Adapter< RecyclerView.ViewH
                 }
             }
         }
+    }
+
+    @Override
+    public Filter getFilter() {
+        return new Filter() {
+            @Override
+            protected FilterResults performFiltering( CharSequence prefix ) {
+                FilterResults results = new FilterResults();
+                if ( mOriginalModels == null ) {
+                    synchronized ( mLock ) {
+                        mOriginalModels = new ArrayList<>( mFreeAppModels );
+                    }
+                }
+                if ( TextUtils.isEmpty( prefix ) ) {
+                    ArrayList< FreeAppModel > list;
+                    synchronized ( mLock ) {
+                        list = new ArrayList<>( mOriginalModels );
+                    }
+                    results.values = list;
+                    results.count = list.size();
+                } else {
+                    final ArrayList< FreeAppModel > newValues = new ArrayList<>();
+                    for ( FreeAppModel item : mOriginalModels ) {
+                        String query = prefix.toString().toLowerCase( Locale.getDefault() );
+                        if ( item.getAppNameModel().getName().toLowerCase( Locale.getDefault() ).contains( query ) ) {
+                            newValues.add( item );
+                        }
+                    }
+                    results.values = newValues;
+                    results.count = newValues.size();
+                }
+                return results;
+            }
+
+            @Override
+            protected void publishResults( CharSequence constraint, FilterResults results ) {
+                //noinspection unchecked
+                mFreeAppModels = ( List< FreeAppModel > ) results.values;
+                notifyDataSetChanged();
+            }
+        };
     }
 
 }

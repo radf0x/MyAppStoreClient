@@ -2,10 +2,13 @@ package com.fox.myappstore.widgets;
 
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.TextView;
 
 import com.fox.myappstore.R;
@@ -13,6 +16,7 @@ import com.fox.myappstore.data.FreeAppModel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Copyright 2017 RavicPN
@@ -29,14 +33,15 @@ import java.util.List;
  * limitations under the License.
  */
 
-public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder > {
+public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder > implements Filterable {
     private final String TAG = this.getClass().getSimpleName();
     private final int TYPE_ODD = 0;
     private final int TYPE_EVEN = 1;
     private final int TYPE_FOOTER = 2;
 
-    private List< FreeAppModel > mTotalFreeAppModels = new ArrayList<>();
+    private Object mLock = new Object();
     private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
+    private List< FreeAppModel > mOriginalModels;
     private boolean bIsLoading = false;
     private int visibleThreshold = 9;
 
@@ -130,8 +135,7 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
      * @param freeAppModels FreeAppModel
      */
     public void setFreeAppModels( List< FreeAppModel > freeAppModels ) {
-        mTotalFreeAppModels.addAll( freeAppModels );
-        mFreeAppModels = mTotalFreeAppModels.subList( 0, 9 ); // hardcoded range.
+        mFreeAppModels = freeAppModels;
         notifyDataSetChanged();
     }
 
@@ -220,5 +224,46 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
         public SimpleViewHolder( View itemView ) {
             super( itemView );
         }
+    }
+
+    @Override
+    public Filter getFilter() {
+        return new Filter() {
+            @Override
+            protected FilterResults performFiltering( CharSequence prefix ) {
+                FilterResults results = new FilterResults();
+                if ( mOriginalModels == null ) {
+                    synchronized ( mLock ) {
+                        mOriginalModels = new ArrayList<>( mFreeAppModels );
+                    }
+                }
+                if ( TextUtils.isEmpty( prefix ) ) {
+                    ArrayList< FreeAppModel > list;
+                    synchronized ( mLock ) {
+                        list = new ArrayList<>( mOriginalModels );
+                    }
+                    results.values = list;
+                    results.count = list.size();
+                } else {
+                    final ArrayList< FreeAppModel > newValues = new ArrayList<>();
+                    for ( FreeAppModel item : mOriginalModels ) {
+                        String query = prefix.toString().toLowerCase( Locale.getDefault() );
+                        if ( item.getAppNameModel().getName().toLowerCase( Locale.getDefault() ).contains( query ) ) {
+                            newValues.add( item );
+                        }
+                    }
+                    results.values = newValues;
+                    results.count = newValues.size();
+                }
+                return results;
+            }
+
+            @Override
+            protected void publishResults( CharSequence constraint, FilterResults results ) {
+                //noinspection unchecked
+                mFreeAppModels = ( List< FreeAppModel > ) results.values;
+                notifyDataSetChanged();
+            }
+        };
     }
 }

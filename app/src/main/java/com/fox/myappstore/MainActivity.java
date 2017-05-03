@@ -3,10 +3,16 @@ package com.fox.myappstore;
 import android.os.Bundle;
 import android.os.Message;
 import android.os.PersistableBundle;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SearchView;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
 
 import com.fox.myappstore.data.FreeAppModel;
 import com.fox.myappstore.data.ServerResponse;
@@ -46,7 +52,10 @@ import java.util.concurrent.TimeUnit;
  * limitations under the License.
  */
 
-public class MainActivity extends AppCompatActivity implements CustomListener, OnTaskCompleted, MyHandlerCallback {
+public class MainActivity extends AppCompatActivity implements
+        CustomListener,
+        OnTaskCompleted,
+        MyHandlerCallback {
     private final String TAG = this.getClass().getSimpleName();
 
     // Event ids.
@@ -59,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
     // View objects.
     public RecyclerView rvRecommended, rvFreeApps;
     public LinearLayoutManager horizontalManager, verticalManager;
+    public MenuItem menuItem;
 
     // Custom objects.
     private MyHandler mHandler = new MyHandler( this );
@@ -91,6 +101,40 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
         fetchRecommendedAppFromFromServer();
         fetchAppListFromAsset();
         fetchRecommendedAppsFromAsset();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu( Menu menu ) {
+        getMenuInflater().inflate( R.menu.menu_search, menu );
+        setupSearchView( menu );
+        return super.onCreateOptionsMenu( menu );
+    }
+
+    private void setupSearchView( Menu menu ) {
+        menuItem = menu.findItem( R.id.action_search );
+        SearchView searchView = ( SearchView ) menuItem.getActionView();
+        searchView.setIconifiedByDefault( false );
+        searchView.setOnQueryTextListener( new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit( String query ) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange( String newText ) {
+                Log.d( TAG, "onQueryTextChange(" + newText + ")" );
+                searchForApps( newText );
+                return true;
+            }
+        } );
+        searchView.setOnQueryTextFocusChangeListener( new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange( View v, boolean hasFocus ) {
+                if ( !hasFocus ) {
+                    menuItem.collapseActionView();
+                }
+            }
+        } );
     }
 
     private void fetchAppListFromServer() {
@@ -166,6 +210,17 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
         super.onSaveInstanceState( outState, outPersistentState );
     }
 
+    private void searchForApps( String query ) {
+        Log.i( TAG, "query = " + query );
+        recommendedAdapter.getFilter().filter( query );
+        appListAdapter.getFilter().filter( query );
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+    }
+
     /**
      * Custom Callbacks
      */
@@ -177,7 +232,7 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
             case AsyncLoaderTask.EVENT_APP_LIST: {
                 if ( output.getClass().isAssignableFrom( ServerResponse.class ) ) {
                     mFreeAppModels = ( ( ServerResponse ) output ).getFeed().getFreeAppModels();
-                    appListAdapter.setFreeAppModels( mFreeAppModels );
+                    appListAdapter.setFreeAppModels( mFreeAppModels.subList( 0, 9 ) ); // hardcoded range.
                 }
                 break;
             }
@@ -199,7 +254,7 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
 
     @Override
     public void onLoadMore() {
-        if ( !bEndOfFeed ) {
+        if ( paginationStartPosition < 100 ) {
             mHandler.sendEmptyMessage( EVENT_APPEND_LOADING_VIEW );
             if ( NetworkHelper.isConnected( this ) ) {
                 mHandler.sendEmptyMessage( EVENT_QUERY_APPS_LIST );
@@ -225,12 +280,12 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
                 break;
             }
             case EVENT_QUERY_APPS_LIST: {
-                if ( paginationStartPosition == 100 ) {
-                    bEndOfFeed = true;
-                }
                 int paginationEndPosition = paginationStartPosition + 10;
+                Log.i( TAG, "start : " + paginationStartPosition );
                 appListAdapter.updateFreeAppModels( mFreeAppModels.subList( paginationStartPosition, paginationEndPosition ) );
                 paginationStartPosition = paginationEndPosition;
+                Log.i( TAG, "next start : " + paginationStartPosition );
+                Log.i( TAG, "end : " + paginationEndPosition );
                 mHandler.sendEmptyMessage( EVENT_REMOVE_LOADING_VIEW );
                 appListAdapter.onLoadFinished();
                 break;
@@ -252,23 +307,23 @@ public class MainActivity extends AppCompatActivity implements CustomListener, O
         String reponseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
         ServerResponse response = GsonHelper.fromJson( reponseStr, ServerResponse.class );
         if ( null != response ) {
-            ServerResponse.FeedModel feed = response.getFeed();
-            Log.i( TAG, "inbound feed for recommended apps: " );
-            for ( FreeAppModel model : feed.getFreeAppModels() ) {
-                Log.i( TAG, "app name : " + model.getAppNameModel().getName() );
-            }
+//            ServerResponse.FeedModel feed = response.getFeed();
+//            Log.i( TAG, "inbound feed for recommended apps: " );
+//            for ( FreeAppModel model : feed.getFreeAppModels() ) {
+//                Log.i( TAG, "app name : " + model.getAppNameModel().getName() );
+//            }
         }
     }
 
     private void setupAppListFeed( Bundle bundle ) {
         String reponseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
         ServerResponse response = GsonHelper.fromJson( reponseStr, ServerResponse.class );
-        if ( null != response ) {
-            ServerResponse.FeedModel feed = response.getFeed();
-            Log.i( TAG, "inbound feed for apps list: " );
-            for ( FreeAppModel model : feed.getFreeAppModels() ) {
-                Log.i( TAG, "app name : " + model.getAppNameModel().getName() );
-            }
-        }
+//        if ( null != response ) {
+//            ServerResponse.FeedModel feed = response.getFeed();
+//            Log.i( TAG, "inbound feed for apps list: " );
+//            for ( FreeAppModel model : feed.getFreeAppModels() ) {
+//                Log.i( TAG, "app name : " + model.getAppNameModel().getName() );
+//            }
+//        }
     }
 }

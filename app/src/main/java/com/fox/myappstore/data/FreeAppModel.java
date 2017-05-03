@@ -96,4 +96,24 @@ public class FreeAppModel {
     public AppCategoryModel getAppCategoryModel() {
         return appCategoryModel;
     }
+
+    @Override
+    public boolean equals( Object obj ) {
+        if ( obj instanceof FreeAppModel ) {
+            FreeAppModel aObj = ( FreeAppModel ) obj;
+            //
+            return aObj.getAppNameModel().getName().equals( getAppNameModel().getName() );
+
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ( ( getAppIdModel().getAppAttributes().getId() == null ) ? 0 : getAppIdModel().getAppAttributes().getId().hashCode() );
+        return result;
+    }
 }
