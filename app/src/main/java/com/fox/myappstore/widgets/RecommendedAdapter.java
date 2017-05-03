@@ -2,7 +2,6 @@ package com.fox.myappstore.widgets;
 
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,11 +11,11 @@ import android.widget.TextView;
 
 import com.fox.myappstore.R;
 import com.fox.myappstore.data.FreeAppModel;
+import com.fox.myappstore.widgets.callbacks.CustomListener;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.locks.Lock;
 
 /**
  * Copyright 2017 RavicPN
@@ -89,7 +88,6 @@ public class RecommendedAdapter extends RecyclerView.Adapter< RecyclerView.ViewH
      */
     public void setRecommendedData( List< FreeAppModel > freeAppModels ) {
         mFreeAppModels = freeAppModels;
-        notifyDataSetChanged();
     }
 
     private class ItemHolder extends RecyclerView.ViewHolder implements View.OnClickListener {

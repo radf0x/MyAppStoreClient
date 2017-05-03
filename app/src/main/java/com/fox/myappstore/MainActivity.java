@@ -8,6 +8,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -22,11 +23,10 @@ import com.fox.myappstore.utils.NetworkHelper;
 import com.fox.myappstore.utils.concurrent.AsyncLoaderTask;
 import com.fox.myappstore.utils.concurrent.MyHandler;
 import com.fox.myappstore.utils.concurrent.MyHandlerCallback;
-import com.fox.myappstore.widgets.AppListAdapter;
-import com.fox.myappstore.widgets.CustomListener;
-import com.fox.myappstore.widgets.DividerDecoration;
-import com.fox.myappstore.widgets.OnTaskCompleted;
+import com.fox.myappstore.widgets.MyBaseAdapter;
 import com.fox.myappstore.widgets.RecommendedAdapter;
+import com.fox.myappstore.widgets.callbacks.CustomListener;
+import com.fox.myappstore.widgets.callbacks.OnTaskCompleted;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,25 +60,23 @@ public class MainActivity extends AppCompatActivity implements
     private final int EVENT_GET_RECOMMENDED_APPS = 1;
     private final int EVENT_GET_APPS_LIST = 2;
     private final int EVENT_QUERY_APPS_LIST = 3;
-    private final int EVENT_APPEND_LOADING_VIEW = 4;
-    private final int EVENT_REMOVE_LOADING_VIEW = 5;
 
     // View objects.
-    public RecyclerView rvRecommended, rvFreeApps;
-    public LinearLayoutManager horizontalManager, verticalManager;
+    public View recommendedView;
+    public RecyclerView rvBase, rvRecommended;
     public MenuItem menuItem;
 
     // Custom objects.
     private MyHandler mHandler = new MyHandler( this );
     public RecommendedAdapter recommendedAdapter;
-    public AppListAdapter appListAdapter;
+    public MyBaseAdapter myBaseAdapter;
     private List< FreeAppModel > mTotalAppListModels = new ArrayList<>();
     private List< FreeAppModel > mAppListModels = new ArrayList<>();
     private List< FreeAppModel > mRecommendModels = new ArrayList<>();
 
     // Primitives.
     private int paginationStartPosition = 10;
-    private boolean bEndOfFeed = false;
+    private int pageSize = 1;
 
     //Multi threading stuff.
     private final int KEEP_ALIVE_TIME = 1;
@@ -91,11 +89,21 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate( savedInstanceState );
+
+
         setContentView( R.layout.activity_main );
-        rvRecommended = ( RecyclerView ) findViewById( R.id.rv_recommended );
-        rvFreeApps = ( RecyclerView ) findViewById( R.id.rv_free_apps );
-        setupRecyclerViews();
-        setupAdapters();
+        rvBase = ( RecyclerView ) findViewById( R.id.rv_main );
+
+
+        rvBase.setLayoutManager( new LinearLayoutManager( this ) );
+        rvBase.setHasFixedSize( true );
+
+        myBaseAdapter = new MyBaseAdapter( rvBase );
+        myBaseAdapter.addCustomListener( this );
+        rvBase.setAdapter( myBaseAdapter );
+
+        recommendedView = LayoutInflater.from( this ).inflate( R.layout.recommended_view, rvBase, false );
+        setupRecommendedView();
         fetchAppListFromServer();
         fetchRecommendedAppFromFromServer();
         fetchAppListFromAsset();
@@ -107,6 +115,18 @@ public class MainActivity extends AppCompatActivity implements
         getMenuInflater().inflate( R.menu.menu_search, menu );
         setupSearchView( menu );
         return super.onCreateOptionsMenu( menu );
+    }
+
+    private void setupRecommendedView() {
+        rvRecommended = ( RecyclerView ) recommendedView.findViewById( R.id.rv_recommended );
+        rvRecommended.setLayoutManager( new LinearLayoutManager( this, LinearLayoutManager.HORIZONTAL, false ) );
+        rvRecommended.setHasFixedSize( true );
+        recommendedAdapter = new RecommendedAdapter();
+        rvRecommended.setAdapter( recommendedAdapter );
+        recommendedAdapter.addCustomListener( this );
+
+        myBaseAdapter.setRecommendedView( recommendedView );
+        myBaseAdapter.notifyDataSetChanged();
     }
 
     private void setupSearchView( Menu menu ) {
@@ -137,9 +157,9 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void searchForApps( String query ) {
-        final List< FreeAppModel > filtered = filter( mAppListModels, query );
-        appListAdapter.setAppListData( filtered );
-        appListAdapter.notifyDataSetChanged();
+        final List< FreeAppModel > filtered = filter( mTotalAppListModels, query );
+        myBaseAdapter.setAppListData( filtered );
+        myBaseAdapter.notifyDataSetChanged();
     }
 
     private List< FreeAppModel > filter( List< FreeAppModel > data, String query ) {
@@ -181,23 +201,6 @@ public class MainActivity extends AppCompatActivity implements
     private void fetchRecommendedAppsFromAsset() {
         AsyncLoaderTask task = new AsyncLoaderTask( this, "recommend.json", AsyncLoaderTask.EVENT_RECOMMEND ).addOnTaskCompletedListener( this );
         task.execute();
-    }
-
-    private void setupRecyclerViews() {
-        horizontalManager = new LinearLayoutManager( this, LinearLayoutManager.HORIZONTAL, false );
-        verticalManager = new LinearLayoutManager( this, LinearLayoutManager.VERTICAL, false );
-        rvRecommended.setLayoutManager( horizontalManager );
-        rvFreeApps.setLayoutManager( verticalManager );
-        rvFreeApps.addItemDecoration( new DividerDecoration( this, R.drawable.divider ) );
-    }
-
-    private void setupAdapters() {
-        recommendedAdapter = new RecommendedAdapter();
-        appListAdapter = new AppListAdapter( rvFreeApps );
-        recommendedAdapter.addCustomListener( this );
-        appListAdapter.addCustomListener( this );
-        rvRecommended.setAdapter( recommendedAdapter );
-        rvFreeApps.setAdapter( appListAdapter );
     }
 
     @Override
@@ -247,8 +250,9 @@ public class MainActivity extends AppCompatActivity implements
             case AsyncLoaderTask.EVENT_APP_LIST: {
                 if ( output.getClass().isAssignableFrom( ServerResponse.class ) ) {
                     mTotalAppListModels = ( ( ServerResponse ) output ).getFeed().getFreeAppModels();
-                    mAppListModels = ( ( ServerResponse ) output ).getFeed().getFreeAppModels();
-                    appListAdapter.setAppListData( mAppListModels.subList( 0, 9 ) ); // hardcoded range.
+                    mAppListModels = mTotalAppListModels.subList( 0, 9 );
+                    myBaseAdapter.setAppListData( mAppListModels ); // hardcoded range.
+                    myBaseAdapter.notifyDataSetChanged();
                 }
                 break;
             }
@@ -256,6 +260,7 @@ public class MainActivity extends AppCompatActivity implements
                 if ( output.getClass().isAssignableFrom( ServerResponse.class ) ) {
                     mRecommendModels = ( ( ServerResponse ) output ).getFeed().getFreeAppModels();
                     recommendedAdapter.setRecommendedData( mRecommendModels );
+                    recommendedAdapter.notifyDataSetChanged();
                 }
                 break;
             }
@@ -270,9 +275,14 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onLoadMore() {
-//        Log.d( TAG, "onLoadMore(" + bEndOfFeed + ")" );
-        if ( !bEndOfFeed && NetworkHelper.isConnected( this ) ) {
-            mHandler.sendEmptyMessage( EVENT_QUERY_APPS_LIST );
+        Log.d( TAG, "onLoadMore(" + pageSize + ")" );
+        if ( pageSize == 10 ) {
+            return;
+        } else {
+            if ( NetworkHelper.isConnected( this ) ) {
+                ++pageSize;
+                mHandler.sendEmptyMessage( EVENT_QUERY_APPS_LIST );
+            }
         }
     }
 
@@ -294,17 +304,14 @@ public class MainActivity extends AppCompatActivity implements
                 break;
             }
             case EVENT_QUERY_APPS_LIST: {
-                appListAdapter.setLoading( true );
+                myBaseAdapter.setLoading( true );
                 int paginationEndPosition = paginationStartPosition + 10;
-                if ( paginationEndPosition == 100 ) {
-                    bEndOfFeed = true;
-                }
                 List< FreeAppModel > models = mTotalAppListModels.subList( paginationStartPosition, paginationEndPosition );
-                mAppListModels.addAll( models );
-                appListAdapter.setAppListData( mAppListModels );
-                appListAdapter.setLoading( false );
+                myBaseAdapter.updateAppListData( models );
+                myBaseAdapter.setLoading( false );
+                myBaseAdapter.notifyDataSetChanged();
                 paginationStartPosition = paginationEndPosition;
-                appListAdapter.onLoadFinished();
+                myBaseAdapter.onLoadFinished();
                 break;
             }
             default:

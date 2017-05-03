@@ -6,45 +6,9 @@
     android:layout_height="match_parent"
     tools:context="com.fox.myappstore.MainActivity">
 
-    <TextView
-        android:id="@+id/tv_recommend_title"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:paddingBottom="8dp"
-        android:paddingEnd="16dp"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp"
-        android:paddingStart="16dp"
-        android:paddingTop="8dp"
-        android:text="@string/recommend_title"/>
-
     <android.support.v7.widget.RecyclerView
-        android:id="@+id/rv_recommended"
+        android:id="@+id/rv_main"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/tv_recommend_title"
-        android:clipToPadding="false"
-        android:paddingBottom="16dp"
-        android:paddingEnd="16dp"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp"
-        android:paddingStart="16dp"/>
-
-    <View
-        android:id="@+id/divider"
-        android:layout_width="match_parent"
-        android:layout_height="0.5dp"
-        android:layout_below="@+id/rv_recommended"
-        android:background="@color/platinum"
-    />
-
-    <android.support.v7.widget.RecyclerView
-        android:id="@+id/rv_free_apps"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@+id/divider"
-        android:clipToPadding="false"
-        android:paddingTop="8dp"/>
+        android:layout_height="match_parent"/>
 
 </RelativeLayout>

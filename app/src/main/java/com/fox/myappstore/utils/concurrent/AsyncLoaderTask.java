@@ -6,7 +6,7 @@ import android.support.annotation.MainThread;
 
 import com.fox.myappstore.data.ServerResponse;
 import com.fox.myappstore.utils.GsonHelper;
-import com.fox.myappstore.widgets.OnTaskCompleted;
+import com.fox.myappstore.widgets.callbacks.OnTaskCompleted;
 
 import java.io.IOException;
 import java.io.InputStream;

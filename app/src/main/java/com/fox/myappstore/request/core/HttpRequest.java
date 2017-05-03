@@ -34,7 +34,7 @@ import okhttp3.Response;
  */
 
 abstract class HttpRequest implements Callback {
-    private final boolean DEBUG = true;
+    private final boolean DEBUG = false;
     public static final String TAG = HttpRequest.class.getSimpleName();
 
     private static final OkHttpClient mOkHttpClient = new OkHttpClient.Builder() //

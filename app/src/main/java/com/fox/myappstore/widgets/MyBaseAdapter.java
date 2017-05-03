@@ -2,22 +2,19 @@ package com.fox.myappstore.widgets;
 
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Filter;
-import android.widget.Filterable;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.fox.myappstore.R;
 import com.fox.myappstore.data.FreeAppModel;
+import com.fox.myappstore.widgets.callbacks.CustomListener;
+import com.fox.myappstore.widgets.viewholders.LoadingViewHolder;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Copyright 2017 RavicPN
@@ -34,22 +31,29 @@ import java.util.Locale;
  * limitations under the License.
  */
 
-public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder > implements Filterable {
-    private final String TAG = this.getClass().getSimpleName();
-    private final int TYPE_ODD = 0;
-    private final int TYPE_EVEN = 1;
-    private final int TYPE_FOOTER = 2;
+public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder > {
 
-    private Object mLock = new Object();
+    private final String TAG = this.getClass().getSimpleName();
+
+    // View type ids.
+    private final int TYPE_RECOMMENDED = 0;
+    private final int TYPE_APP_LIST_ITEM_ODD = 1;
+    private final int TYPE_APP_LIST_ITEM_EVEN = 2;
+    private final int TYPE_APP_LIST_LOADING = 3;
+
+    // Custom objects.
     private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
-    private List< FreeAppModel > mOriginalModels;
+
+    // Primitives.
     private boolean bIsLoading = false;
     private boolean bIsFooterVisible = false;
     private int visibleThreshold = 5;
-
     public CustomListener mListener;
 
-    public AppListAdapter( RecyclerView recyclerView ) {
+    // View
+    private View recommendedView;
+
+    public MyBaseAdapter( RecyclerView recyclerView ) {
         final LinearLayoutManager layoutManager = ( LinearLayoutManager ) recyclerView.getLayoutManager();
         recyclerView.addOnScrollListener( new RecyclerView.OnScrollListener() {
             @Override
@@ -68,67 +72,6 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
                 }
             }
         } );
-    }
-
-    @Override
-    public RecyclerView.ViewHolder onCreateViewHolder( ViewGroup parent, int viewType ) {
-        switch ( viewType ) {
-            case TYPE_ODD: {
-                return new ItemHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_app_odd, parent, false ) );
-            }
-            case TYPE_EVEN: {
-                return new ItemHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_app_even, parent, false ) );
-            }
-            case TYPE_FOOTER: {
-                return new LoadingViewHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_loading, parent, false ) );
-            }
-            default: {
-                throw new IllegalArgumentException();
-            }
-        }
-    }
-
-    @Override
-    public void onBindViewHolder( RecyclerView.ViewHolder holder, int position ) {
-        if ( holder instanceof LoadingViewHolder ) {
-            LoadingViewHolder viewHolder = ( LoadingViewHolder ) holder;
-            viewHolder.pb.setVisibility( bIsFooterVisible ? View.VISIBLE : View.GONE );
-        } else {
-            FreeAppModel model = mFreeAppModels.get( position );
-            if ( null != model ) {
-                if ( holder instanceof ItemHolder ) {
-                    ItemHolder itemHolder = ( ItemHolder ) holder;
-                    itemHolder.bindData( model );
-                }
-            }
-        }
-    }
-
-    // Determine the total amount of items should be loaded.
-    @Override
-    public int getItemCount() {
-        if ( mFreeAppModels == null || mFreeAppModels.size() == 0 ) {
-            return 0;
-        }
-        // +1 for footer
-        return mFreeAppModels.size() + 1;
-    }
-
-    @Override
-    public int getItemViewType( int position ) {
-        if ( isFooterViewPosition( position ) ) {
-            return TYPE_FOOTER;
-        }
-        return position % 2 == 0 ? TYPE_EVEN : TYPE_ODD;
-    }
-
-    @Override
-    public void onViewRecycled( RecyclerView.ViewHolder holder ) {
-        super.onViewRecycled( holder );
-        if ( holder.getClass().isAssignableFrom( ItemHolder.class ) ) {
-            ItemHolder itemHolder = ( ItemHolder ) holder;
-            itemHolder.clearData();
-        }
     }
 
     /**
@@ -150,6 +93,10 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
         mFreeAppModels.addAll( freeAppModels );
     }
 
+    public void updateAppListData( List< FreeAppModel > freeAppModels ) {
+        mFreeAppModels.addAll( freeAppModels );
+    }
+
     /**
      * Notify load delegate when loading is completed.
      */
@@ -159,14 +106,78 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
 
     public void setLoading( boolean status ) {
         bIsFooterVisible = status;
-        notifyDataSetChanged();
     }
 
-    private boolean isFooterViewPosition( int position ) {
-        if ( position != 0 && position == getItemCount() - 1 ) {
-            return true;
+    public void setRecommendedView( View recommendedView ) {
+        this.recommendedView = recommendedView;
+    }
+
+    @Override
+    public RecyclerView.ViewHolder onCreateViewHolder( ViewGroup parent, int viewType ) {
+        switch ( viewType ) {
+            case TYPE_RECOMMENDED: {
+                return new SimpleHolder( recommendedView );
+            }
+            case TYPE_APP_LIST_ITEM_ODD: {
+                return new ItemHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_app_odd, parent, false ) );
+            }
+            case TYPE_APP_LIST_ITEM_EVEN: {
+                return new ItemHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_app_even, parent, false ) );
+            }
+            case TYPE_APP_LIST_LOADING: {
+                return new LoadingViewHolder( LayoutInflater.from( parent.getContext() ).inflate( R.layout.item_loading, parent, false ) );
+            }
+            default: {
+                break;
+            }
         }
-        return false;
+        throw new IllegalArgumentException();
+    }
+
+    @Override
+    public void onBindViewHolder( RecyclerView.ViewHolder holder, int position ) {
+        if ( holder instanceof LoadingViewHolder ) {
+            LoadingViewHolder viewHolder = ( LoadingViewHolder ) holder;
+            viewHolder.pb.setVisibility( bIsFooterVisible ? View.VISIBLE : View.GONE );
+        }
+        if ( holder instanceof ItemHolder ) {
+            ItemHolder itemHolder = ( ItemHolder ) holder;
+            FreeAppModel model = mFreeAppModels.get( position - 1 );
+            if ( null != model ) {
+                itemHolder.bindData( model );
+            }
+        }
+    }
+
+    @Override
+    public int getItemViewType( int position ) {
+        if ( position == 0 ) {
+            return TYPE_RECOMMENDED;
+        }
+
+        if ( position == getItemCount() - 1 ) {
+            return TYPE_APP_LIST_LOADING;
+        }
+
+        return position % 2 == 0 ? TYPE_APP_LIST_ITEM_EVEN : TYPE_APP_LIST_ITEM_ODD;
+    }
+
+    @Override
+    public int getItemCount() {
+        if ( mFreeAppModels == null || mFreeAppModels.size() == 0 ) {
+            return 1;
+        }
+        // +2 for header and footer.
+        return mFreeAppModels.size() + 2;
+    }
+
+    @Override
+    public void onViewRecycled( RecyclerView.ViewHolder holder ) {
+        super.onViewRecycled( holder );
+        if ( holder.getClass().isAssignableFrom( ItemHolder.class ) ) {
+            ItemHolder itemHolder = ( ItemHolder ) holder;
+            itemHolder.clearData();
+        }
     }
 
     private class ItemHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
@@ -204,7 +215,7 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
 
         @Override
         public void onClick( View v ) {
-            int position = getAdapterPosition();
+            int position = getAdapterPosition() - 1;
             if ( position >= 0 && position < mFreeAppModels.size() ) {
                 if ( null != mListener ) {
                     mListener.onItemClick( mFreeAppModels.get( position ) );
@@ -216,56 +227,10 @@ public class AppListAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolde
         }
     }
 
-    private class LoadingViewHolder extends RecyclerView.ViewHolder {
-        ProgressBar pb;
-
-        public LoadingViewHolder( View itemView ) {
+    private class SimpleHolder extends RecyclerView.ViewHolder {
+        public SimpleHolder( View itemView ) {
             super( itemView );
-            pb = ( ProgressBar ) itemView.findViewById( R.id.pb_loading );
         }
     }
 
-    @Override
-    public Filter getFilter() {
-        return new Filter() {
-            @Override
-            protected FilterResults performFiltering( CharSequence prefix ) {
-                FilterResults results = new FilterResults();
-                if ( mOriginalModels == null ) {
-                    synchronized ( mLock ) {
-                        mOriginalModels = new ArrayList<>( mFreeAppModels );
-                    }
-                }
-                if ( TextUtils.isEmpty( prefix ) ) {
-                    ArrayList< FreeAppModel > list;
-                    synchronized ( mLock ) {
-                        list = new ArrayList<>( mOriginalModels );
-                    }
-                    results.values = list;
-                    results.count = list.size();
-                } else {
-                    final ArrayList< FreeAppModel > newValues = new ArrayList<>();
-                    for ( FreeAppModel item : mOriginalModels ) {
-                        String query = prefix.toString().toLowerCase( Locale.getDefault() );
-                        if ( item.getAppNameModel().getName().toLowerCase( Locale.getDefault() ).contains( query ) ) {
-                            newValues.add( item );
-                        }
-                    }
-                    results.values = newValues;
-                    results.count = newValues.size();
-                }
-                return results;
-            }
-
-            @Override
-            protected void publishResults( CharSequence constraint, FilterResults results ) {
-                //noinspection unchecked
-                if ( results.count > 0 ) {
-                    mFreeAppModels.clear();
-                    mFreeAppModels.addAll( ( ArrayList< FreeAppModel > ) results.values );
-                    notifyDataSetChanged();
-                }
-            }
-        };
-    }
 }

@@ -1,4 +1,4 @@
-package com.fox.myappstore.widgets;
+package com.fox.myappstore.widgets.callbacks;
 
 /**
  * Copyright 2017 RavicPN
