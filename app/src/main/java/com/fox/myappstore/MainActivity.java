@@ -1,16 +1,22 @@
 package com.fox.myappstore;
 
+import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.RemoteException;
+import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.design.widget.CoordinatorLayout;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
@@ -22,6 +28,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Toast;
 
 import com.fox.myappstore.data.FreeAppModel;
 import com.fox.myappstore.data.ServerResponse;
@@ -32,6 +39,7 @@ import com.fox.myappstore.request.RecommendedAppsRequest;
 import com.fox.myappstore.request.core.HttpRequestImpl;
 import com.fox.myappstore.utils.GsonHelper;
 import com.fox.myappstore.utils.NetworkHelper;
+import com.fox.myappstore.utils.SharedPrefs;
 import com.fox.myappstore.utils.concurrent.AsyncLoaderTask;
 import com.fox.myappstore.utils.concurrent.MyHandler;
 import com.fox.myappstore.utils.concurrent.MyHandlerCallback;
@@ -39,7 +47,10 @@ import com.fox.myappstore.widgets.MyBaseAdapter;
 import com.fox.myappstore.widgets.RecommendedAdapter;
 import com.fox.myappstore.widgets.callbacks.CustomListener;
 import com.fox.myappstore.widgets.callbacks.OnTaskCompleted;
+import com.google.gson.Gson;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -74,6 +85,7 @@ public class MainActivity extends AppCompatActivity implements
     private final int EVENT_GET_APPS_LIST = 2;
     private final int EVENT_QUERY_APPS_LIST = 3;
     private final int EVENT_QUERY_APP_DETAIL = 4;
+    private final int EVENT_REQUEST_PERMISSION_FOR_EXT_WRITE = 101;
 
     // View objects.
     public View recommendedView;
@@ -91,10 +103,13 @@ public class MainActivity extends AppCompatActivity implements
     private List< FreeAppModel > cachedAppList = new ArrayList<>();
     private List< FreeAppModel > recommendedApps = new ArrayList<>();
     private List< FreeAppModel > cachedRecommendedApps = new ArrayList<>();
+    private ServerResponse recommendedResponse;
+    private ServerResponse appsListResponse;
 
     // Primitives.
     private int paginationStartPosition = 10;
     private int pageSize = 0;
+    private boolean permission = false;
 
     // Multi threading stuff.
     private final int KEEP_ALIVE_TIME = 1;
@@ -117,6 +132,10 @@ public class MainActivity extends AppCompatActivity implements
                         if ( NetworkService.NETWORK_STATE_DISCONNECTED.equals( status ) ) {
                             if ( snackBar != null ) snackBar.show();
                         } else if ( NetworkService.NETWORK_STATE_RECONNECTED.equals( status ) ) {
+                            if ( swipeRefreshLayout.isRefreshing() ) {
+                                fetchAppListFromServer();
+                                fetchRecommendedAppFromFromServer();
+                            }
                             if ( snackBar != null ) snackBar.dismiss();
                         }
                     }
@@ -133,33 +152,23 @@ public class MainActivity extends AppCompatActivity implements
         }
     };
 
-    private void bindNetworkService() {
-        Intent intent = new Intent( this, NetworkService.class );
-        bindService( intent, mConnection, Context.BIND_AUTO_CREATE );
-    }
-
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate( savedInstanceState );
         setContentView( R.layout.activity_main );
         bindNetworkService();
 
+        //Ask for permission
+        if ( ActivityCompat.checkSelfPermission( this, Manifest.permission.WRITE_EXTERNAL_STORAGE ) != PackageManager.PERMISSION_GRANTED ) {
+            ActivityCompat.requestPermissions( this, new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE }, EVENT_REQUEST_PERMISSION_FOR_EXT_WRITE );
+        }
+
         coordinatorLayout = ( CoordinatorLayout ) findViewById( R.id.coordinator_layout );
 
         swipeRefreshLayout = ( SwipeRefreshLayout ) findViewById( R.id.swipe_refresh );
         swipeRefreshLayout.setOnRefreshListener( this );
 
-        snackBar = Snackbar.make( coordinatorLayout, "No network ", Snackbar.LENGTH_INDEFINITE )
-                .setAction( "Retry", new View.OnClickListener() {
-                    @Override
-                    public void onClick( View v ) {
-                        if ( NetworkHelper.isConnected( getApplicationContext() ) ) {
-                            snackBar.dismiss();
-                            fetchAppListFromServer();
-                            fetchRecommendedAppFromFromServer();
-                        }
-                    }
-                } );
+        snackBar = Snackbar.make( coordinatorLayout, "Network seems to be disconnected :(\n Reconnect and pull to refresh.", Snackbar.LENGTH_INDEFINITE );
 
         setupAppListView();
         setupRecommendedView();
@@ -179,6 +188,11 @@ public class MainActivity extends AppCompatActivity implements
         getMenuInflater().inflate( R.menu.menu_search, menu );
         setupSearchView( menu );
         return super.onCreateOptionsMenu( menu );
+    }
+
+    private void bindNetworkService() {
+        Intent intent = new Intent( this, NetworkService.class );
+        bindService( intent, mConnection, Context.BIND_AUTO_CREATE );
     }
 
     private void setupAppListView() {
@@ -228,6 +242,8 @@ public class MainActivity extends AppCompatActivity implements
             public void onFocusChange( View v, boolean hasFocus ) {
                 if ( !hasFocus ) {
                     menuItem.collapseActionView();
+                    myBaseAdapter.restoreData();
+                    recommendedAdapter.restoreData();
                 }
             }
         } );
@@ -262,32 +278,24 @@ public class MainActivity extends AppCompatActivity implements
 
     private void fetchAppListFromServer() {
         new AppListRequest( mHandler, EVENT_GET_APPS_LIST ).sendRequest();
-//        EXECUTOR.execute( new Runnable() {
-//            @Override
-//            public void run() {
-//                new AppListRequest( mHandler, EVENT_GET_APPS_LIST ).sendRequest();
-//            }
-//        } );
     }
 
     private void fetchRecommendedAppFromFromServer() {
         new RecommendedAppsRequest( mHandler, EVENT_GET_RECOMMENDED_APPS ).sendRequest();
-//        EXECUTOR.execute( new Runnable() {
-//            @Override
-//            public void run() {
-//                new RecommendedAppsRequest( mHandler, EVENT_GET_RECOMMENDED_APPS ).sendRequest();
-//            }
-//        } );
 
     }
 
     private void fetchAppListFromCache() {
-        AsyncLoaderTask task = new AsyncLoaderTask( this, "app.json", AsyncLoaderTask.EVENT_APP_LIST ).addOnTaskCompletedListener( this );
+        boolean firstTimeOpen = PreferenceManager.getDefaultSharedPreferences( this ).getBoolean( SharedPrefs.INITIAL_OPEN, true );
+        Log.v( TAG, "first time open = " + firstTimeOpen );
+        AsyncLoaderTask task = new AsyncLoaderTask( this, "cachedApps.json", AsyncLoaderTask.EVENT_APP_LIST, firstTimeOpen ).addOnTaskCompletedListener( this );
         task.execute();
     }
 
     private void fetchRecommendedAppsFromCache() {
-        AsyncLoaderTask task = new AsyncLoaderTask( this, "recommend.json", AsyncLoaderTask.EVENT_RECOMMEND ).addOnTaskCompletedListener( this );
+        boolean firstTimeOpen = PreferenceManager.getDefaultSharedPreferences( this ).getBoolean( SharedPrefs.INITIAL_OPEN, true );
+        Log.v( TAG, "first time open = " + firstTimeOpen );
+        AsyncLoaderTask task = new AsyncLoaderTask( this, "recommended.json", AsyncLoaderTask.EVENT_RECOMMEND, firstTimeOpen ).addOnTaskCompletedListener( this );
         task.execute();
     }
 
@@ -296,11 +304,125 @@ public class MainActivity extends AppCompatActivity implements
             int id = model.getAppIdModel().getAppAttributes().getId();
             new AppLookupRequest( mHandler, EVENT_QUERY_APP_DETAIL, id ).sendRequest();
         }
+        if ( permission ) {
+            persistAppList();
+        }
+    }
+
+    private void setupRatingModules( Bundle bundle ) {
+        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
+        DetailResponseModel response = GsonHelper.fromJson( responseStr, DetailResponseModel.class );
+        if ( null != response ) {
+            float rating = response.getModels().get( 0 ).getAverageUserRating();
+            int amount = response.getModels().get( 0 ).getUserRatingCount();
+            int id = response.getModels().get( 0 ).getAppId();
+//            Log.i( TAG, "id : " + id + "-----rating : " + rating );
+            for ( int i = 0; i < appList.size(); i++ ) {
+                if ( appList.get( i ).getAppIdModel().getAppAttributes().getId() == id ) {
+                    appList.get( i ).setUserRating( rating );
+                    appList.get( i ).setRatingAmount( amount );
+                }
+            }
+        }
+    }
+
+    private void persistRecommendedApps() {
+        EXECUTOR.execute( new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Log.d( TAG, "persisting data" + Environment.getExternalStorageDirectory() );
+                    String jsonStr = new Gson().toJson( recommendedResponse );
+                    FileWriter file = new FileWriter( Environment.getExternalStorageDirectory() + "/" + "recommended.json" );
+                    file.write( jsonStr );
+                    file.flush();
+                    file.close();
+                }
+                catch ( IOException e ) {
+                    e.printStackTrace();
+                }
+
+            }
+        } );
+    }
+
+    private void persistAppList() {
+        EXECUTOR.execute( new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Log.d( TAG, "persisting data" + Environment.getExternalStorageDirectory() );
+                    String jsonStr = new Gson().toJson( appsListResponse );
+                    FileWriter file = new FileWriter( Environment.getExternalStorageDirectory() + "/" + "cachedApps.json" );
+                    file.write( jsonStr );
+                    file.flush();
+                    file.close();
+                }
+                catch ( IOException e ) {
+                    e.printStackTrace();
+                }
+
+            }
+        } );
+    }
+
+    private void setupRecommendedFeed( Bundle bundle ) {
+        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
+        ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
+        if ( null != response ) {
+            recommendedApps.clear();
+            ServerResponse.FeedModel feed = response.getFeed();
+            for ( FreeAppModel model : feed.getFreeAppModels() ) {
+                recommendedApps.add( model );
+            }
+            updateRecommendedAdapter( recommendedApps );
+            recommendedResponse = response;
+            if ( permission ) {
+                persistRecommendedApps();
+            }
+        }
+    }
+
+    private void setupAppListFeed( Bundle bundle ) {
+        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
+        ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
+        if ( null != response ) {
+            appList.clear();
+            ServerResponse.FeedModel feed = response.getFeed();
+            for ( FreeAppModel model : feed.getFreeAppModels() ) {
+                appList.add( model );
+            }
+            queryAppDetail( appList );
+        }
+        appsListResponse = response;
+        persistAppList();
+        notifyRefreshLayout();
+    }
+
+    private void updateRecommendedAdapter( List< FreeAppModel > newModels ) {
+        recommendedAdapter.setRecommendedData( newModels );
+        recommendedAdapter.notifyDataSetChanged();
+    }
+
+    private void updateAppListAdapter( List< FreeAppModel > newModels ) {
+        myBaseAdapter.setAppListData( newModels.subList( 0, 9 ) );
+        myBaseAdapter.notifyDataSetChanged();
+    }
+
+    private void searchForRecommendedApps( String query ) {
+        recommendedAdapter.getFilter().filter( query );
+    }
+
+    private void notifyRefreshLayout() {
+        if ( swipeRefreshLayout.isRefreshing() ) {
+            swipeRefreshLayout.setRefreshing( false );
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        PreferenceManager.getDefaultSharedPreferences( this ).edit().putBoolean( SharedPrefs.INITIAL_OPEN, false ).apply();
     }
 
     @Override
@@ -328,10 +450,6 @@ public class MainActivity extends AppCompatActivity implements
         super.onSaveInstanceState( outState, outPersistentState );
     }
 
-    private void searchForRecommendedApps( String query ) {
-        recommendedAdapter.getFilter().filter( query );
-    }
-
     @Override
     public void onBackPressed() {
         super.onBackPressed();
@@ -356,7 +474,7 @@ public class MainActivity extends AppCompatActivity implements
      */
     @Override
     public void onTaskCompleted( int eventId, Object output ) {
-        Log.d( TAG, "onTaskCompleted" );
+//        Log.d( TAG, "onTaskCompleted" );
         switch ( eventId ) {
             case AsyncLoaderTask.EVENT_APP_LIST: {
                 if ( output.getClass().isAssignableFrom( ServerResponse.class ) ) {
@@ -385,9 +503,9 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onLoadMore() {
-        Log.d( TAG, "onLoadMore(" + pageSize + ")" );
+//        Log.d( TAG, "onLoadMore(" + pageSize + ")" );
         if ( pageSize == 9 ) {
-            Log.d( TAG, "page size is 9" );
+//            Log.d( TAG, "page size is 9" );
             return;
         } else {
             if ( NetworkHelper.isConnected( this ) ) {
@@ -437,6 +555,7 @@ public class MainActivity extends AppCompatActivity implements
                 Bundle bundle = msg.getData();
                 if ( bundle.getBoolean( HttpRequestImpl.IS_SUCCESSFUL ) ) {
                     setupRatingModules( bundle );
+                    updateAppListAdapter( appList );
                     break;
                 }
                 break;
@@ -446,62 +565,21 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
-    private void setupRatingModules( Bundle bundle ) {
-        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
-        DetailResponseModel response = GsonHelper.fromJson( responseStr, DetailResponseModel.class );
-        if ( null != response ) {
-            float rating = response.getModels().get( 0 ).getAverageUserRating();
-            int id = response.getModels().get( 0 ).getAppId();
-//            Log.i( TAG, "id : " + id + "-----rating : " + rating );
-            for ( int i = 0; i < appList.size(); i++ ) {
-                if ( appList.get( i ).getAppIdModel().getAppAttributes().getId() == id ) {
-                    appList.get( i ).setUserRating( rating );
+    @Override
+    public void onRequestPermissionsResult( int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults ) {
+        switch ( requestCode ) {
+            case EVENT_REQUEST_PERMISSION_FOR_EXT_WRITE: {
+                if ( grantResults[ 0 ] == PackageManager.PERMISSION_GRANTED ) {
+                    permission = true;
+                } else {
+                    permission = false;
+                    Toast.makeText( this, "Please enable write permission for offline cache", Toast.LENGTH_SHORT ).show();
                 }
+                break;
             }
-        }
-        updateAppListAdapter( appList );
-    }
-
-    private void setupRecommendedFeed( Bundle bundle ) {
-        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
-        ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
-        if ( null != response ) {
-            recommendedApps.clear();
-            ServerResponse.FeedModel feed = response.getFeed();
-            for ( FreeAppModel model : feed.getFreeAppModels() ) {
-                recommendedApps.add( model );
+            default: {
+                super.onRequestPermissionsResult( requestCode, permissions, grantResults );
             }
-            updateRecommendedAdapter( recommendedApps );
-        }
-    }
-
-    private void setupAppListFeed( Bundle bundle ) {
-        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
-        ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
-        if ( null != response ) {
-            appList.clear();
-            ServerResponse.FeedModel feed = response.getFeed();
-            for ( FreeAppModel model : feed.getFreeAppModels() ) {
-                appList.add( model );
-            }
-            queryAppDetail( appList );
-        }
-        notifyRefreshLayout();
-    }
-
-    private void updateRecommendedAdapter( List< FreeAppModel > newModels ) {
-        recommendedAdapter.setRecommendedData( newModels );
-        recommendedAdapter.notifyDataSetChanged();
-    }
-
-    private void updateAppListAdapter( List< FreeAppModel > newModels ) {
-        myBaseAdapter.setAppListData( newModels.subList( 0, 9 ) );
-        myBaseAdapter.notifyDataSetChanged();
-    }
-
-    private void notifyRefreshLayout() {
-        if ( swipeRefreshLayout.isRefreshing() ) {
-            swipeRefreshLayout.setRefreshing( false );
         }
     }
 }

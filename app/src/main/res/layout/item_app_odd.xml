@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
                 xmlns:app="http://schemas.android.com/apk/res-auto"
-                xmlns:style="http://schemas.android.com/tools"
-                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
                 android:paddingBottom="@dimen/list_padding_vertical"
                 android:paddingEnd="@dimen/list_padding_horizontal"
                 android:paddingLeft="@dimen/list_padding_horizontal"
@@ -30,7 +30,7 @@
         android:layout_toRightOf="@+id/iv_icon"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="Oldwuni"
+        android:text="@string/placeholder"
         android:textSize="@dimen/item_list_title_text_size"/>
 
     <TextView
@@ -44,7 +44,7 @@
         android:layout_toRightOf="@+id/iv_icon"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="Fox"
+        android:text="@string/placeholder"
         android:textSize="@dimen/item_list_subtitle_text_size"/>
 
     <android.support.v7.widget.AppCompatRatingBar
@@ -54,9 +54,20 @@
         android:layout_height="wrap_content"
         android:layout_below="@+id/tv_app_subtitle"
         android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
+        android:layout_marginRight="8dp"
         android:layout_toEndOf="@+id/iv_icon"
         android:layout_toRightOf="@+id/iv_icon"
         android:numStars="5"
         android:stepSize="0.5"/>
+
+    <TextView
+        android:id="@+id/tv_rate_amount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/tv_app_subtitle"
+        android:layout_toRightOf="@+id/rating_bar"
+        android:text="@string/rating_amount"
+        android:textSize="@dimen/item_list_counter_text_size"/>
+
+
 </RelativeLayout>

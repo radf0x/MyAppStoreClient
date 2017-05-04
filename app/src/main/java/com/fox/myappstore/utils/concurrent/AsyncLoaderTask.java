@@ -2,12 +2,15 @@ package com.fox.myappstore.utils.concurrent;
 
 import android.content.Context;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.support.annotation.MainThread;
 
 import com.fox.myappstore.data.ServerResponse;
 import com.fox.myappstore.utils.GsonHelper;
 import com.fox.myappstore.widgets.callbacks.OnTaskCompleted;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -35,11 +38,13 @@ public class AsyncLoaderTask extends AsyncTask< String, String, ServerResponse >
     private OnTaskCompleted mListener;
     private String fileName;
     private int eventId;
+    private boolean loadFromAsset;
 
-    public AsyncLoaderTask( Context context, String fileName, int eventId ) {
+    public AsyncLoaderTask( Context context, String fileName, int eventId, boolean loadFromAsset ) {
         this.context = context;
         this.fileName = fileName;
         this.eventId = eventId;
+        this.loadFromAsset = loadFromAsset;
     }
 
     public AsyncLoaderTask addOnTaskCompletedListener( OnTaskCompleted listener ) {
@@ -54,7 +59,7 @@ public class AsyncLoaderTask extends AsyncTask< String, String, ServerResponse >
 
     @Override
     protected ServerResponse doInBackground( String... params ) {
-        return composeModel( loadJSONFromAsset() );
+        return composeModel( loadFromAsset ? loadJSONFromAsset() : loadJSONFromCache() );
     }
 
     @SuppressWarnings( { "UnusedDeclaration" } )
@@ -75,6 +80,24 @@ public class AsyncLoaderTask extends AsyncTask< String, String, ServerResponse >
         String json = null;
         try {
             InputStream is = context.getAssets().open( fileName );
+            int size = is.available();
+            byte[] buffer = new byte[ size ];
+            is.read( buffer );
+            is.close();
+            json = new String( buffer, "UTF-8" );
+        }
+        catch ( IOException ex ) {
+            ex.printStackTrace();
+            return null;
+        }
+        return json;
+    }
+
+    public String loadJSONFromCache() {
+        String json = null;
+        try {
+            File file = new File( Environment.getExternalStorageDirectory() + "/" + fileName );
+            InputStream is = new FileInputStream( file );
             int size = is.available();
             byte[] buffer = new byte[ size ];
             is.read( buffer );

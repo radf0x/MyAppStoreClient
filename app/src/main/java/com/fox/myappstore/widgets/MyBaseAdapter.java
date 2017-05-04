@@ -44,6 +44,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
 
     // Custom objects.
     private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
+    private List< FreeAppModel > mOriginalModels;
 
     // Primitives.
     private boolean bLoaded = false;
@@ -64,12 +65,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
                     int visibleItemCount = layoutManager.getChildCount();
                     int totalItemCount = layoutManager.getItemCount();
                     int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
-                    Log.i( TAG, "visibleItemCount = " + visibleItemCount );
-                    Log.i( TAG, "totalItemCount = " + totalItemCount );
-                    Log.i( TAG, "firstVisibleItemPosition = " + firstVisibleItemPosition );
-                    Log.i( TAG, " bIsLoading = " + bLoaded );
                     if ( !bLoaded && ( totalItemCount - visibleItemCount ) <= ( firstVisibleItemPosition + visibleThreshold ) ) {
-                        Log.d( TAG, "load more!!" );
                         if ( null != mListener ) {
                             mListener.onLoadMore();
                         }
@@ -97,6 +93,15 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
     public void setAppListData( List< FreeAppModel > freeAppModels ) {
         mFreeAppModels.clear();
         mFreeAppModels.addAll( freeAppModels );
+        if ( mOriginalModels == null ) {
+            mOriginalModels = new ArrayList<>( freeAppModels );
+        }
+
+    }
+
+    public void restoreData() {
+        setAppListData( mOriginalModels );
+        notifyDataSetChanged();
     }
 
     public void updateAppListData( List< FreeAppModel > freeAppModels ) {
@@ -196,6 +201,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
         CustomImageView ivIcon;
         TextView tvTitle;
         TextView tvSubtitle;
+        TextView tvRateAmount;
         RatingBar ratingBar;
 
         /**
@@ -208,6 +214,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
             ivIcon = ( CustomImageView ) itemView.findViewById( R.id.iv_icon );
             tvTitle = ( TextView ) itemView.findViewById( R.id.tv_app_title );
             tvSubtitle = ( TextView ) itemView.findViewById( R.id.tv_app_subtitle );
+            tvRateAmount = ( TextView ) itemView.findViewById( R.id.tv_rate_amount );
             ratingBar = ( RatingBar ) itemView.findViewById( R.id.rating_bar );
             itemView.setOnClickListener( this );
         }
@@ -221,6 +228,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
             ivIcon.loadUrl( model.getAppImageModel().get( 0 ).getIconUrl() );
             tvTitle.setText( model.getAppNameModel().getName() );
             tvSubtitle.setText( model.getAppCategoryModel().getAppAttributes().getLabel() );
+            tvRateAmount.setText( tvRateAmount.getContext().getString( R.string.rating_amount, model.getRatingAmount() ) );
             ratingBar.setRating( model.getUserRating() );
         }
 

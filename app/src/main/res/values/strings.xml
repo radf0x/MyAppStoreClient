@@ -1,5 +1,7 @@
 <resources>
+    <string name="placeholder">placeholder</string>
     <string name="app_name">MyAppStore</string>
     <string name="recommend_title">Recommended</string>
     <string name="menu_search_title">Search for apps</string>
+    <string name="rating_amount">( %1$d )</string>
 </resources>

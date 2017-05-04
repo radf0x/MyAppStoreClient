@@ -22,7 +22,7 @@ public class DetailResultsModel {
     @SerializedName( "averageUserRating" )
     public float averageUserRating;
     @SerializedName( "userRatingCount" )
-    public String userRatingCount;
+    public int userRatingCount;
     @SerializedName( "description" )
     public String description;
     @SerializedName( "trackId" )
@@ -34,7 +34,7 @@ public class DetailResultsModel {
         return averageUserRating;
     }
 
-    public String getUserRatingCount() {
+    public int getUserRatingCount() {
         return userRatingCount;
     }
 

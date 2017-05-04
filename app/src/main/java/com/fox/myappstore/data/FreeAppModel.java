@@ -58,6 +58,8 @@ public class FreeAppModel {
 
     private float userRating;
 
+    private int ratingAmount;
+
     public AppNameModel getAppNameModel() {
         return appNameModel;
     }
@@ -105,6 +107,14 @@ public class FreeAppModel {
 
     public float getUserRating() {
         return userRating;
+    }
+
+    public int getRatingAmount() {
+        return ratingAmount;
+    }
+
+    public void setRatingAmount( int ratingAmount ) {
+        this.ratingAmount = ratingAmount;
     }
 
     @Override

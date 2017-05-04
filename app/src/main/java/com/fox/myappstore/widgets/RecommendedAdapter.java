@@ -90,6 +90,10 @@ public class RecommendedAdapter extends RecyclerView.Adapter< RecyclerView.ViewH
         mFreeAppModels = freeAppModels;
     }
 
+    public void restoreData() {
+        setRecommendedData( mOriginalModels );
+    }
+
     private class ItemHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         CustomImageView ivIcon;
         TextView tvTitle;
