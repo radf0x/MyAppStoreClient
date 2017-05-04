@@ -3,6 +3,7 @@ package com.fox.myappstore;
 import android.os.Bundle;
 import android.os.Message;
 import android.os.PersistableBundle;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -15,7 +16,9 @@ import android.view.View;
 
 import com.fox.myappstore.data.FreeAppModel;
 import com.fox.myappstore.data.ServerResponse;
+import com.fox.myappstore.data.detailModels.DetailResponseModel;
 import com.fox.myappstore.request.AppListRequest;
+import com.fox.myappstore.request.AppLookupRequest;
 import com.fox.myappstore.request.RecommendedAppsRequest;
 import com.fox.myappstore.request.core.HttpRequestImpl;
 import com.fox.myappstore.utils.GsonHelper;
@@ -53,30 +56,36 @@ import java.util.concurrent.TimeUnit;
 public class MainActivity extends AppCompatActivity implements
         CustomListener,
         OnTaskCompleted,
-        MyHandlerCallback {
+        MyHandlerCallback,
+        SwipeRefreshLayout.OnRefreshListener {
     private final String TAG = this.getClass().getSimpleName();
 
     // Event ids.
     private final int EVENT_GET_RECOMMENDED_APPS = 1;
     private final int EVENT_GET_APPS_LIST = 2;
     private final int EVENT_QUERY_APPS_LIST = 3;
+    private final int EVENT_QUERY_APP_DETAIL = 4;
 
     // View objects.
     public View recommendedView;
     public RecyclerView rvBase, rvRecommended;
     public MenuItem menuItem;
+    public SwipeRefreshLayout swipeRefreshLayout;
 
     // Custom objects.
     private MyHandler mHandler = new MyHandler( this );
     public RecommendedAdapter recommendedAdapter;
     public MyBaseAdapter myBaseAdapter;
+    private List< FreeAppModel > mNewAppsFromServer = new ArrayList<>();
     private List< FreeAppModel > mTotalAppListModels = new ArrayList<>();
     private List< FreeAppModel > mAppListModels = new ArrayList<>();
     private List< FreeAppModel > mRecommendModels = new ArrayList<>();
+    private List< String > ratings = new ArrayList<>();
 
     // Primitives.
     private int paginationStartPosition = 10;
     private int pageSize = 1;
+    private int currentPos = 0;
 
     //Multi threading stuff.
     private final int KEEP_ALIVE_TIME = 1;
@@ -93,7 +102,8 @@ public class MainActivity extends AppCompatActivity implements
 
         setContentView( R.layout.activity_main );
         rvBase = ( RecyclerView ) findViewById( R.id.rv_main );
-
+        swipeRefreshLayout = ( SwipeRefreshLayout ) findViewById( R.id.swipe_refresh );
+        swipeRefreshLayout.setOnRefreshListener( this );
 
         rvBase.setLayoutManager( new LinearLayoutManager( this ) );
         rvBase.setHasFixedSize( true );
@@ -104,8 +114,6 @@ public class MainActivity extends AppCompatActivity implements
 
         recommendedView = LayoutInflater.from( this ).inflate( R.layout.recommended_view, rvBase, false );
         setupRecommendedView();
-        fetchAppListFromServer();
-        fetchRecommendedAppFromFromServer();
         fetchAppListFromAsset();
         fetchRecommendedAppsFromAsset();
     }
@@ -203,6 +211,10 @@ public class MainActivity extends AppCompatActivity implements
         task.execute();
     }
 
+    private void queryAppDetail( int appId ) {
+        new AppLookupRequest( mHandler, EVENT_QUERY_APP_DETAIL, appId ).sendRequest();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -237,6 +249,13 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onBackPressed() {
         super.onBackPressed();
+    }
+
+    @Override
+    public void onRefresh() {
+        // query new data set from server.
+        fetchAppListFromServer();
+        fetchRecommendedAppFromFromServer();
     }
 
     /**
@@ -314,12 +333,32 @@ public class MainActivity extends AppCompatActivity implements
                 myBaseAdapter.onLoadFinished();
                 break;
             }
+
+            case EVENT_QUERY_APP_DETAIL: {
+                Bundle bundle = msg.getData();
+                if ( bundle.getBoolean( HttpRequestImpl.IS_SUCCESSFUL ) ) {
+                    setupRatingModules( bundle );
+                    break;
+                }
+                break;
+            }
             default:
                 break;
         }
     }
 
+    private void setupRatingModules( Bundle bundle ) {
+        Log.d( TAG, "setupRatingModules" );
+        String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
+        DetailResponseModel response = GsonHelper.fromJson( responseStr, DetailResponseModel.class );
+        if ( null != response ) {
+            mNewAppsFromServer.get( currentPos ).setUserRating( response.getModels().get( 0 ).getAverageUserRating() );
+            ++currentPos;
+        }
+    }
+
     private void setupRecommendedFeed( Bundle bundle ) {
+        Log.d( TAG, "setting up feed for recommended" );
         String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
         ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
         if ( null != response ) {
@@ -329,17 +368,38 @@ public class MainActivity extends AppCompatActivity implements
 //                Log.i( TAG, "app name : " + model.getAppNameModel().getName() );
 //            }
         }
+        notifyRefreshLayout();
     }
 
     private void setupAppListFeed( Bundle bundle ) {
+        Log.d( TAG, "setting up new feed for app list" );
         String responseStr = bundle.getString( HttpRequestImpl.HTTP_RESPONSE_BODY );
         ServerResponse response = GsonHelper.fromJson( responseStr, ServerResponse.class );
-//        if ( null != response ) {
-//            ServerResponse.FeedModel feed = response.getFeed();
-//            Log.i( TAG, "inbound feed for apps list: " );
-//            for ( FreeAppModel model : feed.getFreeAppModels() ) {
-//                Log.i( TAG, "app name : " + model.getAppNameModel().getName() );
-//            }
-//        }
+        if ( null != response ) {
+            if ( currentPos == 100 ) {
+                currentPos = 0;
+            }
+            mNewAppsFromServer.clear();
+            ratings.clear();
+            ServerResponse.FeedModel feed = response.getFeed();
+            Log.i( TAG, "inbound feed for apps list: " );
+            for ( FreeAppModel model : feed.getFreeAppModels() ) {
+                mNewAppsFromServer.add( model );
+                queryAppDetail( model.getAppIdModel().getAppAttributes().getId() );
+            }
+        }
+        replaceDataSetWithLatest( mNewAppsFromServer );
+        notifyRefreshLayout();
+    }
+
+    private void replaceDataSetWithLatest( List< FreeAppModel > newModels ) {
+        myBaseAdapter.setAppListData( newModels );
+        myBaseAdapter.notifyDataSetChanged();
+    }
+
+    private void notifyRefreshLayout() {
+        if ( swipeRefreshLayout.isRefreshing() ) {
+            swipeRefreshLayout.setRefreshing( false );
+        }
     }
 }

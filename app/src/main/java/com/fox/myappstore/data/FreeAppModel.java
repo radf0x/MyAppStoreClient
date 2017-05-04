@@ -56,6 +56,8 @@ public class FreeAppModel {
     @SerializedName( "category" )
     AppCategoryModel appCategoryModel;
 
+    private String userRating;
+
     public AppNameModel getAppNameModel() {
         return appNameModel;
     }
@@ -95,6 +97,14 @@ public class FreeAppModel {
 
     public AppCategoryModel getAppCategoryModel() {
         return appCategoryModel;
+    }
+
+    public void setUserRating( String userRating ) {
+        this.userRating = userRating;
+    }
+
+    public String getUserRating() {
+        return userRating;
     }
 
     @Override

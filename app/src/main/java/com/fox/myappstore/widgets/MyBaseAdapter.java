@@ -219,9 +219,9 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
             if ( position >= 0 && position < mFreeAppModels.size() ) {
                 if ( null != mListener ) {
                     mListener.onItemClick( mFreeAppModels.get( position ) );
-                    Log.i( TAG, "===== BEGIN DEBUG =====" );
-                    Log.d( TAG, "clicked pos : " + position + " app name : " + mFreeAppModels.get( position ).getAppNameModel().getName() );
-                    Log.i( TAG, "=======================" );
+                    Log.d( TAG, "===== BEGIN DEBUG =====" );
+                    Log.i( TAG, "clicked pos : " + position + " app name : " + mFreeAppModels.get( position ).getAppNameModel().getName() + " avg rating : " + mFreeAppModels.get( position ).getUserRating() );
+                    Log.d( TAG, "=======================" );
                 }
             }
         }

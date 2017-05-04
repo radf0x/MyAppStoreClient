@@ -34,11 +34,11 @@ public class AppIdModel {
 
     public class AppAttributes {
         @SerializedName( "im:id" )
-        String id;
+        Integer id;
         @SerializedName( "im:bundleId" )
         String bundleId;
 
-        public String getId() {
+        public Integer getId() {
             return id;
         }
 
