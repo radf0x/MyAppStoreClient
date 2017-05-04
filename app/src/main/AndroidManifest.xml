@@ -20,6 +20,19 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <receiver android:name=".utils.NetworkStateBroadcastReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_SHUTDOWN"/>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+            </intent-filter>
+        </receiver>
+        <service android:name=".NetworkService"
+                 android:exported="false">
+            <!--explicit intent filter is unnecessary if both client / service is running on the same device-->
+            <!--<intent-filter>-->
+            <!--<action android:name="service.action"/>-->
+            <!--</intent-filter>-->
+        </service>
     </application>
 
 </manifest>

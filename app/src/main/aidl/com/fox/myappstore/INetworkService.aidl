@@ -1,9 +1,4 @@
-package com.fox.myappstore.data.detailModels;
-
-import com.google.gson.annotations.SerializedName;
-
-import java.util.List;
-
+// IRemote.aidl
 /**
  * Copyright 2017 RavicPN
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +13,13 @@ import java.util.List;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.fox.myappstore;
 
+import com.fox.myappstore.INetworkServiceCallback;
 
-public class DetailResponseModel {
-    @SerializedName( "results" )
-    public List< DetailResultsModel > models;
+interface INetworkService {
 
-    public List< DetailResultsModel > getModels() {
-        return models;
-    }
+    void registerNetworkCallback(INetworkServiceCallback callback);
+
+    void unregisterCallback(INetworkServiceCallback callback);
 }

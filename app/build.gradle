@@ -30,6 +30,7 @@ dependencies {
     compile 'com.android.support.constraint:constraint-layout:1.0.2'
     compile "com.android.support:cardview-v7:$VERSION_ANDROID_SUPPORT"
     compile "com.android.support:recyclerview-v7:$VERSION_ANDROID_SUPPORT"
+    compile "com.android.support:design:$VERSION_ANDROID_SUPPORT"
     // JSON library
     compile 'com.google.code.gson:gson:2.8.0'
     // Glide library and its dependencies for image processing

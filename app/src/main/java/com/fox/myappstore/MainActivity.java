@@ -1,8 +1,16 @@
 package com.fox.myappstore;
 
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.os.Message;
 import android.os.PersistableBundle;
+import android.os.RemoteException;
+import android.support.design.widget.CoordinatorLayout;
+import android.support.design.widget.Snackbar;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
@@ -72,6 +80,8 @@ public class MainActivity extends AppCompatActivity implements
     public RecyclerView rvBase, rvRecommended;
     public MenuItem menuItem;
     public SwipeRefreshLayout swipeRefreshLayout;
+    public CoordinatorLayout coordinatorLayout;
+    public Snackbar snackBar;
 
     // Custom objects.
     private MyHandler mHandler = new MyHandler( this );
@@ -86,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements
     private int paginationStartPosition = 10;
     private int pageSize = 0;
 
-    //Multi threading stuff.
+    // Multi threading stuff.
     private final int KEEP_ALIVE_TIME = 1;
     private final TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.SECONDS;
     private final int MIN_NUM_OF_CORES = 1;
@@ -94,14 +104,62 @@ public class MainActivity extends AppCompatActivity implements
     private final BlockingQueue< Runnable > RUNNABLES = new LinkedBlockingQueue<>();
     private final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor( MIN_NUM_OF_CORES, MAX_NUM_OF_CORES, KEEP_ALIVE_TIME, KEEP_ALIVE_TIME_UNIT, RUNNABLES );
 
+    // Network service stuff.
+    private INetworkService mService;
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected( ComponentName name, IBinder service ) {
+            mService = INetworkService.Stub.asInterface( service );
+            try {
+                mService.registerNetworkCallback( new INetworkServiceCallback.Stub() {
+                    @Override
+                    public void onConnectionStatusChanged( String status ) throws RemoteException {
+                        if ( NetworkService.NETWORK_STATE_DISCONNECTED.equals( status ) ) {
+                            if ( snackBar != null ) snackBar.show();
+                        } else if ( NetworkService.NETWORK_STATE_RECONNECTED.equals( status ) ) {
+                            if ( snackBar != null ) snackBar.dismiss();
+                        }
+                    }
+                } );
+            }
+            catch ( RemoteException e ) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected( ComponentName name ) {
+            mService = null;
+        }
+    };
+
+    private void bindNetworkService() {
+        Intent intent = new Intent( this, NetworkService.class );
+        bindService( intent, mConnection, Context.BIND_AUTO_CREATE );
+    }
+
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate( savedInstanceState );
-
         setContentView( R.layout.activity_main );
+        bindNetworkService();
+
+        coordinatorLayout = ( CoordinatorLayout ) findViewById( R.id.coordinator_layout );
 
         swipeRefreshLayout = ( SwipeRefreshLayout ) findViewById( R.id.swipe_refresh );
         swipeRefreshLayout.setOnRefreshListener( this );
+
+        snackBar = Snackbar.make( coordinatorLayout, "No network ", Snackbar.LENGTH_INDEFINITE )
+                .setAction( "Retry", new View.OnClickListener() {
+                    @Override
+                    public void onClick( View v ) {
+                        if ( NetworkHelper.isConnected( getApplicationContext() ) ) {
+                            snackBar.dismiss();
+                            fetchAppListFromServer();
+                            fetchRecommendedAppFromFromServer();
+                        }
+                    }
+                } );
 
         setupAppListView();
         setupRecommendedView();
@@ -110,6 +168,7 @@ public class MainActivity extends AppCompatActivity implements
             fetchAppListFromServer();
             fetchRecommendedAppFromFromServer();
         } else {
+            snackBar.show();
             fetchAppListFromCache();
             fetchRecommendedAppsFromCache();
         }
@@ -251,6 +310,7 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     protected void onDestroy() {
+        unbindService( mConnection );
         appList.clear();
         recommendedApps.clear();
         cachedAppList.clear();
@@ -279,18 +339,21 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onRefresh() {
-        myBaseAdapter.resetLoader();
-        pageSize = 0;
-        paginationStartPosition = 10;
-        // query new data set from server.
-        fetchAppListFromServer();
-        fetchRecommendedAppFromFromServer();
+        if ( NetworkHelper.isConnected( this ) ) {
+            myBaseAdapter.resetLoader();
+            pageSize = 0;
+            paginationStartPosition = 10;
+            // query new data set from server.
+            fetchAppListFromServer();
+            fetchRecommendedAppFromFromServer();
+        } else {
+            snackBar.show();
+        }
     }
 
     /**
      * Custom Callbacks
      */
-
     @Override
     public void onTaskCompleted( int eventId, Object output ) {
         Log.d( TAG, "onTaskCompleted" );

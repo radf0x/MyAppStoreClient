@@ -1,9 +1,4 @@
-package com.fox.myappstore.data.detailModels;
-
-import com.google.gson.annotations.SerializedName;
-
-import java.util.List;
-
+//INetworkServiceCallback.aidl
 /**
  * Copyright 2017 RavicPN
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +14,8 @@ import java.util.List;
  * limitations under the License.
  */
 
+package com.fox.myappstore;
 
-public class DetailResponseModel {
-    @SerializedName( "results" )
-    public List< DetailResultsModel > models;
-
-    public List< DetailResultsModel > getModels() {
-        return models;
-    }
+interface INetworkServiceCallback {
+    void onConnectionStatusChanged(String status);
 }
