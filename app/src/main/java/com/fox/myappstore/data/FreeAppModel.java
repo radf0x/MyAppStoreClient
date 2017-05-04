@@ -56,7 +56,7 @@ public class FreeAppModel {
     @SerializedName( "category" )
     AppCategoryModel appCategoryModel;
 
-    private String userRating;
+    private float userRating;
 
     public AppNameModel getAppNameModel() {
         return appNameModel;
@@ -99,11 +99,11 @@ public class FreeAppModel {
         return appCategoryModel;
     }
 
-    public void setUserRating( String userRating ) {
+    public void setUserRating( float userRating ) {
         this.userRating = userRating;
     }
 
-    public String getUserRating() {
+    public float getUserRating() {
         return userRating;
     }
 

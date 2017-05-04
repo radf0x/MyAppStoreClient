@@ -1,11 +1,14 @@
 package com.fox.myappstore.widgets;
 
+import android.support.v4.text.TextUtilsCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RatingBar;
 import android.widget.TextView;
 
 import com.fox.myappstore.R;
@@ -184,6 +187,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
         CustomImageView ivIcon;
         TextView tvTitle;
         TextView tvSubtitle;
+        RatingBar ratingBar;
 
         /**
          * Bind reference to view objects.
@@ -195,6 +199,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
             ivIcon = ( CustomImageView ) itemView.findViewById( R.id.iv_icon );
             tvTitle = ( TextView ) itemView.findViewById( R.id.tv_app_title );
             tvSubtitle = ( TextView ) itemView.findViewById( R.id.tv_app_subtitle );
+            ratingBar = ( RatingBar ) itemView.findViewById( R.id.rating_bar );
             itemView.setOnClickListener( this );
         }
 
@@ -207,6 +212,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
             ivIcon.loadUrl( model.getAppImageModel().get( 0 ).getIconUrl() );
             tvTitle.setText( model.getAppNameModel().getName() );
             tvSubtitle.setText( model.getAppCategoryModel().getAppAttributes().getLabel() );
+            ratingBar.setRating( model.getUserRating() );
         }
 
         public void clearData() {

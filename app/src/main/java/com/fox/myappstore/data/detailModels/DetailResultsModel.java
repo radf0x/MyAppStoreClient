@@ -8,13 +8,17 @@ import com.google.gson.annotations.SerializedName;
 
 public class DetailResultsModel {
     @SerializedName( "averageUserRating" )
-    public String averageUserRating;
+    public float averageUserRating;
     @SerializedName( "userRatingCount" )
     public String userRatingCount;
     @SerializedName( "description" )
     public String description;
+    @SerializedName( "trackId" )
+    public int appId;
+    @SerializedName( "trackName" )
+    public String appName;
 
-    public String getAverageUserRating() {
+    public float getAverageUserRating() {
         return averageUserRating;
     }
 
@@ -24,5 +28,13 @@ public class DetailResultsModel {
 
     public String getDescription() {
         return description;
+    }
+
+    public int getAppId() {
+        return appId;
+    }
+
+    public String getAppName() {
+        return appName;
     }
 }
