@@ -48,9 +48,9 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
     private List< FreeAppModel > mFreeAppModels = new ArrayList<>();
 
     // Primitives.
-    private boolean bIsLoading = false;
+    private boolean bLoaded = false;
     private boolean bIsFooterVisible = false;
-    private int visibleThreshold = 5;
+    private int visibleThreshold = 6;
     public CustomListener mListener;
 
     // View
@@ -66,11 +66,16 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
                     int visibleItemCount = layoutManager.getChildCount();
                     int totalItemCount = layoutManager.getItemCount();
                     int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
-                    if ( !bIsLoading && ( totalItemCount - visibleItemCount ) <= ( firstVisibleItemPosition + visibleThreshold ) ) {
+                    Log.i( TAG, "visibleItemCount = " + visibleItemCount );
+                    Log.i( TAG, "totalItemCount = " + totalItemCount );
+                    Log.i( TAG, "firstVisibleItemPosition = " + firstVisibleItemPosition );
+                    Log.i( TAG, " bIsLoading = " + bLoaded );
+                    if ( !bLoaded && ( totalItemCount - visibleItemCount ) <= ( firstVisibleItemPosition + visibleThreshold ) ) {
+                        Log.d( TAG, "load more!!" );
                         if ( null != mListener ) {
                             mListener.onLoadMore();
                         }
-                        bIsLoading = true;
+                        bLoaded = true;
                     }
                 }
             }
@@ -104,7 +109,13 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
      * Notify load delegate when loading is completed.
      */
     public void onLoadFinished() {
-        bIsLoading = false;
+        bLoaded = false;
+    }
+
+    public void resetLoader() {
+        if ( bLoaded == true ) {
+            bLoaded = false;
+        }
     }
 
     public void setLoading( boolean status ) {
@@ -225,9 +236,7 @@ public class MyBaseAdapter extends RecyclerView.Adapter< RecyclerView.ViewHolder
             if ( position >= 0 && position < mFreeAppModels.size() ) {
                 if ( null != mListener ) {
                     mListener.onItemClick( mFreeAppModels.get( position ) );
-                    Log.d( TAG, "===== BEGIN DEBUG =====" );
                     Log.i( TAG, "clicked pos : " + position + " app name : " + mFreeAppModels.get( position ).getAppNameModel().getName() + " avg rating : " + mFreeAppModels.get( position ).getUserRating() );
-                    Log.d( TAG, "=======================" );
                 }
             }
         }

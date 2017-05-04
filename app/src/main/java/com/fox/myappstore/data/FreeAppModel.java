@@ -50,7 +50,7 @@ public class FreeAppModel {
     @SerializedName( "id" )
     AppIdModel appIdModel;
 
-    @SerializedName( "artist" )
+    @SerializedName( "im:artist" )
     AppArtistModel appArtistModel;
 
     @SerializedName( "category" )
